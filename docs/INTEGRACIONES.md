@@ -1,18 +1,24 @@
 # Integraciones
 
-Estado al 16-nov-2026. El prototipo corre en **modo demo** (`NEXT_PUBLIC_ALPHA_MODE=demo`) con adaptadores simulados en `apps/web/src/lib/adapters.ts`. Cada adaptador `testnet` falla con un mensaje claro hasta conectarse con la documentación oficial: no se inventaron endpoints.
+Estado al 16-nov-2026. Con `NEXT_PUBLIC_ALPHA_MODE=demo` todo es simulado; con `testnet` la app usa los servicios reales. Las claves viven solo en el servidor (`.env.local` en local, variables cifradas en Vercel) y nunca llevan prefijo `NEXT_PUBLIC_`.
 
-| Herramienta | Para qué | Adaptador | Estado | Qué falta |
+| Herramienta | Cómo se integra | Archivo | Clave | Estado |
 | --- | --- | --- | --- | --- |
-| [Trustless Work](https://docs.trustlesswork.com) | Escrow multi-hito en USDC o EURC | `EscrowProvider` | Simulado | Pedir API key, mapear crear/fondear/aprobar/liberar según su API y React SDK |
-| [ACTA](https://acta.build) | Credenciales W3C, `did:stellar` | `CredentialProvider` | Simulado | Confirmar acceso a red de prueba; plan B: atestaciones en `LotPassport` |
-| [Whisp (FAO)](https://whisp.openforis.org) | Riesgo de deforestación por parcela | `DeforestationProvider` | Respuesta grabada | Pedir clave de API; llamar desde el servidor |
-| [Circle USDC y EURC](https://faucet.circle.com) | Monedas del escrow | `ASSETS` | Emisores en `.env.example` | Verificar emisores Testnet contra el faucet de Circle |
-| Stellar Wallets Kit | Firma de cada rol | — | Pendiente | Conectar Freighter en el front |
-| Anchor Platform / testanchor (SEP-24) | Retiro de la cooperativa | — | Pendiente | Flujo interactivo SEP-24 |
-| `LotPassport` (este repo) | Registro del lote y de los hitos | — | Contrato con tests | Desplegar en Testnet y generar el cliente TypeScript |
-| `PremiumSplitter` (este repo) | Reparto del premio | — | Contrato con tests | Desplegar en Testnet |
+| [Trustless Work](https://docs.trustlesswork.com/trustless-work/v2-en/api-rest/introduction) Core API v2, multi-release | El servidor construye `deploy`, `fund`, `approve-milestones` y `release-funds`; la wallet del importador firma deploy y fondeo; la cuenta aprobadora de Alpha Pass firma aprobación y liberación en el servidor | `src/app/api/escrow/*`, `src/lib/server/trustless-work.ts` | `TRUSTLESS_WORK_API_KEY` | Código listo · falta la clave |
+| [ACTA](https://acta.build) | SDK oficial `@acta-team/credentials` en el navegador, apuntando a `/api/acta`; el servidor agrega `X-ACTA-Key`. La cooperativa crea su `did:stellar`, su bóveda y emite la credencial del pasaporte (5 XLM por credencial en Testnet) | `src/lib/acta-bridge.tsx`, `src/app/api/acta/[...path]` | `ACTA_API_KEY` | Clave configurada |
+| [Whisp (FAO)](https://whisp.openforis.org/api/openapi.json) | `POST /api/submit/geojson` asíncrono y consulta de `/api/status/{token}`; apta si `risk_pcrop = low` y sin perturbación después de 2020 | `src/app/api/whisp/route.ts`, `src/lib/whisp.ts` | `WHISP_API_KEY` | Código listo · falta la clave |
+| Stellar Wallets Kit | Conexión y firma de cada rol (Freighter, xBull, Albedo, Lobstr…) | `src/lib/wallet.ts` | — | Listo |
+| `LotPassport` | `create_lot` y `attest` firmados por la wallet; el servidor lee `is_attested` por simulación antes de liberar | `src/lib/lot-passport-client.ts`, `src/lib/server/stellar.ts` | — | Falta desplegar el contrato y poner `NEXT_PUBLIC_LOT_PASSPORT_CONTRACT_ID` |
+| Circle USDC y EURC | Moneda del escrow, elegida por el importador | `src/lib/adapters.ts` | — | Emisores Testnet en la plantilla; verificar en faucet.circle.com |
+| Anchor Platform (SEP-24) | Retiro de la cooperativa | — | — | Pendiente |
 
-## Monedas
+## Cuentas de servicio
 
-El escrow acepta **USDC o EURC**; la moneda se elige al crear el escrow. La lógica de liberación no depende de la moneda (ver `release-gate.test.ts`). Los emisores Testnet de `.env.example` deben confirmarse en el faucet de Circle antes de usarse: la documentación de Trustless Work muestra un emisor de USDC distinto al del faucet.
+Alpha Pass usa cuatro cuentas propias en el escrow: aprobadora (también firma liberaciones), administradora, resolutora de disputas y plataforma. Sus secretos están en las variables `ALPHA_*_SECRET`. La aprobadora ya tiene fondos de Testnet (friendbot) para pagar comisiones.
+
+## Orden de una liberación en Testnet
+
+1. El verificador firma `LotPassport.attest` con su wallet.
+2. El importador pulsa "Liberar hito".
+3. `/api/escrow/release` simula `is_attested`; si es `false`, responde 409 y no toca el escrow.
+4. Si es `true`, pide a Trustless Work la aprobación y la liberación, las firma con la cuenta aprobadora y las envía.
