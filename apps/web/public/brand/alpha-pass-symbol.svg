@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 180" role="img" aria-label="Alpha Pass">
+  <!-- Vectorización aproximada del símbolo entregado por el equipo.
+       Reemplazar por el archivo vectorial original cuando esté disponible. -->
+  <defs>
+    <mask id="ap-gap">
+      <rect width="220" height="180" fill="#fff"/>
+      <path d="M4 186 C 54 120, 118 92, 196 86" fill="none" stroke="#000" stroke-width="11"/>
+    </mask>
+  </defs>
+  <polygon points="96,6 142,6 210,176 166,176 119,58 92,118 44,142" fill="#1F4D3A" mask="url(#ap-gap)"/>
+  <path d="M8 180 C 58 124, 118 102, 182 96 C 122 110, 74 134, 40 180 Z" fill="#1F4D3A"/>
+  <circle cx="197" cy="98" r="12" fill="#B23A2E"/>
+</svg>
