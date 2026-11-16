@@ -6,7 +6,7 @@ import { MILESTONES } from "./domain";
 import { canRelease, GATE_MESSAGE, splitPremium } from "./release-gate";
 import { initialLot, DEMO_PREMIUM } from "./sample-data";
 import { merkleRoot, sha256Hex } from "./merkle";
-import { providers } from "./adapters";
+import { demoProviders, providers as appProviders } from "./adapters";
 
 type Action =
   | { type: "reset" }
@@ -75,27 +75,38 @@ interface Ctx {
 const LotContext = createContext<Ctx | null>(null);
 const STORAGE_KEY = "alpha-pass-demo-lot";
 
-export function LotProvider({ children }: { children: React.ReactNode }) {
-  const [lot, dispatch] = useReducer(reducer, undefined, initialLot);
+interface LotProviderProps {
+  children: React.ReactNode;
+  /** Estado inicial (vista previa de la home). */
+  initial?: Lot;
+  /** Vista previa: servicios simulados y sin persistencia. Nunca firma transacciones. */
+  preview?: boolean;
+}
+
+export function LotProvider({ children, initial, preview = false }: LotProviderProps) {
+  const [lot, dispatch] = useReducer(reducer, undefined, () => initial ?? initialLot());
+  const providers = preview ? demoProviders : appProviders;
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState<string[]>([]);
   const note = useCallback((m: string) => setLog((l) => [`${new Date().toLocaleTimeString("es-PE")} · ${m}`, ...l].slice(0, 30)), []);
 
   useEffect(() => {
+    if (preview) return;
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) dispatch({ type: "load", lot: JSON.parse(saved) });
     } catch {
       /* estado nuevo si no hay almacenamiento */
     }
-  }, []);
+  }, [preview]);
   useEffect(() => {
+    if (preview) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(lot));
     } catch {
       /* sin persistencia */
     }
-  }, [lot]);
+  }, [lot, preview]);
 
   const run = useCallback(async <T,>(fn: () => Promise<T>): Promise<T> => {
     setBusy(true);
@@ -179,10 +190,10 @@ export function LotProvider({ children }: { children: React.ReactNode }) {
       return shares;
     },
     reset: () => {
-      dispatch({ type: "reset" });
+      dispatch(initial ? { type: "load", lot: initial } : { type: "reset" });
       setLog([]);
     },
-  }), [lot, busy, log, run, note]);
+  }), [lot, busy, log, run, note, providers, initial]);
 
   return <LotContext.Provider value={value}>{children}</LotContext.Provider>;
 }

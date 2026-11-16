@@ -24,7 +24,7 @@ export interface Providers {
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-const demoProviders: Providers = {
+export const demoProviders: Providers = {
   deforestation: {
     async assess(parcels) {
       await wait(400);
