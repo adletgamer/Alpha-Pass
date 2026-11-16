@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
-import { SiteHeader } from "@/components/SiteHeader";
 
 export const metadata: Metadata = {
-  title: "Alpha Pass · origen verificado",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
+  title: { default: "Alpha Pass · Verified Origin Infrastructure", template: "%s · Alpha Pass" },
   description: "Pasaporte verificado de lotes de café y cacao y cobro por hitos en USDC o EURC sobre Stellar.",
-  icons: { icon: "/brand/alpha-pass-symbol.svg" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -23,7 +22,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <Providers>
-          <SiteHeader />
           {children}
         </Providers>
       </body>
