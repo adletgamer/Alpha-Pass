@@ -4,8 +4,14 @@ node_modules/
 out/
 *.tsbuildinfo
 next-env.d.ts
+# Secretos: ningún .env se sube, salvo la plantilla
 .env
-.env.local
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+.vercel
 
 # Rust / Soroban
 contracts/target/

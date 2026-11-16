@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "./Logo";
 import { MODE } from "@/lib/adapters";
+import { WalletButton } from "./WalletButton";
 
 const LINKS = [
   { href: "/cooperativa", label: "Cooperativa" },
@@ -19,6 +20,9 @@ export function SiteHeader() {
       {MODE === "demo" && (
         <div className="demo-banner">Modo demo: datos de ejemplo y servicios simulados. Nada se envía a Stellar.</div>
       )}
+      {MODE === "testnet" && (
+        <div className="demo-banner">Stellar Testnet: transacciones reales de prueba, sin dinero real.</div>
+      )}
       <header className="site">
         <div className="inner">
           <Link href="/" aria-label="Alpha Pass, inicio" style={{ textDecoration: "none" }}>
@@ -30,6 +34,7 @@ export function SiteHeader() {
                 {l.label}
               </Link>
             ))}
+            <WalletButton />
           </nav>
         </div>
       </header>

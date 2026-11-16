@@ -44,6 +44,8 @@ export interface Attestation {
 }
 
 export interface EscrowState {
+  /** Id del contrato de escrow (Trustless Work) o "demo-escrow-…" en modo demo. */
+  contractId: string;
   asset: AssetCode;
   amount: number;
   funded: boolean;

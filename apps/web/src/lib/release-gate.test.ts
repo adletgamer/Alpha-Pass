@@ -8,7 +8,7 @@ function fundedLot(): Lot {
   return {
     ...initialLot(),
     passportRoot: "abc",
-    escrow: { asset: "USDC", amount: 16500, funded: true, released: { acopio: false, embarque: false, llegada: false } },
+    escrow: { contractId: "demo", asset: "USDC", amount: 16500, funded: true, released: { acopio: false, embarque: false, llegada: false } },
   };
 }
 

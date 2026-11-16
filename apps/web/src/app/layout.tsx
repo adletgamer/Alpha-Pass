@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { LotProvider } from "@/lib/store";
+import { Providers } from "@/components/Providers";
 import { SiteHeader } from "@/components/SiteHeader";
 
 export const metadata: Metadata = {
@@ -22,10 +22,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <LotProvider>
+        <Providers>
           <SiteHeader />
           {children}
-        </LotProvider>
+        </Providers>
       </body>
     </html>
   );
