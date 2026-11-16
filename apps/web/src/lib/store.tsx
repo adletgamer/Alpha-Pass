@@ -13,7 +13,7 @@ type Action =
   | { type: "load"; lot: Lot }
   | { type: "risk"; risks: Record<string, "sin_riesgo" | "alerta"> }
   | { type: "anchor"; root: string }
-  | { type: "fund"; asset: AssetCode; amount: number }
+  | { type: "fund"; asset: AssetCode; amount: number; contractId: string }
   | { type: "attest"; milestone: Milestone; issuer: string; evidenceHash: string }
   | { type: "release"; milestone: Milestone }
   | { type: "premium" };
@@ -32,6 +32,7 @@ function reducer(lot: Lot, a: Action): Lot {
       return {
         ...lot,
         escrow: {
+          contractId: a.contractId,
           asset: a.asset,
           amount: a.amount,
           funded: true,
@@ -100,6 +101,10 @@ export function LotProvider({ children }: { children: React.ReactNode }) {
     setBusy(true);
     try {
       return await fn();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setLog((l) => [`${new Date().toLocaleTimeString("es-PE")} · Error: ${msg}`, ...l].slice(0, 30));
+      throw err;
     } finally {
       setBusy(false);
     }
@@ -124,13 +129,13 @@ export function LotProvider({ children }: { children: React.ReactNode }) {
         { kind: "composicion", lot: lot.id, parcels: parcels.map((p) => [p.id, p.bags]) },
       ];
       const root = await merkleRoot(credentials);
+      const res = await providers.passport.anchor(lot, root, parcels);
       dispatch({ type: "anchor", root });
-      note(`Pasaporte anclado en LotPassport · raíz ${root.slice(0, 8)}…`);
+      note(`Pasaporte anclado · raíz ${root.slice(0, 8)}… · ${res.note}`);
     }),
     fundEscrow: (asset, amount) => run(async () => {
-      const { escrowId } = await providers.escrow.create({ lotId: lot.id, asset, amount });
-      await providers.escrow.fund(escrowId);
-      dispatch({ type: "fund", asset, amount });
+      const { contractId } = await providers.escrow.createAndFund({ lotId: lot.id, asset, amount });
+      dispatch({ type: "fund", asset, amount, contractId });
       note(`Escrow fondeado con ${amount.toLocaleString("es-PE")} ${asset}`);
     }),
     attest: (milestone, issuer, evidence) => run(async () => {
@@ -140,6 +145,11 @@ export function LotProvider({ children }: { children: React.ReactNode }) {
         return "El hito anterior todavía no está atestado.";
       }
       const evidenceHash = await sha256Hex(evidence);
+      try {
+        await providers.passport.attest(lot.id, milestone, evidenceHash);
+      } catch (err) {
+        return err instanceof Error ? err.message : String(err);
+      }
       dispatch({ type: "attest", milestone, issuer, evidenceHash });
       note(`Credencial de ${milestone} firmada por ${issuer}`);
       return null;
@@ -150,7 +160,13 @@ export function LotProvider({ children }: { children: React.ReactNode }) {
         note(`Liberación de ${milestone} rechazada: ${GATE_MESSAGE[gate.reason]}`);
         return GATE_MESSAGE[gate.reason];
       }
-      await providers.escrow.approveAndRelease(`demo-escrow-${lot.id}`, milestone);
+      try {
+        await providers.escrow.release({ contractId: lot.escrow!.contractId, lotId: lot.id, milestone });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        note(`Liberación de ${milestone} rechazada: ${msg}`);
+        return msg;
+      }
       dispatch({ type: "release", milestone });
       note(`Hito ${milestone} liberado`);
       return null;
