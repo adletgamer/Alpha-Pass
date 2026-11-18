@@ -34,7 +34,7 @@ export default function CooperativaPage() {
       <div className="row">
         <section className="card grow" aria-labelledby="parcelas">
           <div className="row" style={{ justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-            <h2 id="parcelas">1. Parcelas del lote</h2>
+            <h2 id="parcelas" tabIndex={-1}>1. Parcelas del lote</h2>
             <button className="btn" type="button" disabled={busy || verified} onClick={verifyParcels}>
               {verified ? "Parcelas verificadas" : "Verificar con Whisp (FAO)"}
             </button>

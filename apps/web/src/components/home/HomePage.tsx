@@ -1,6 +1,8 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
+import Image from "next/image";
 import "@/app/home.css";
+import "@/app/home-editorial.css";
 import { homeCopy, type HomeLocale } from "./home-copy";
 import { HomeNav } from "@/components/home/HomeNav";
 import { HeroScene } from "@/components/home/HeroScene";
@@ -8,6 +10,7 @@ import { HowItWorks } from "@/components/home/HowItWorks";
 import { ProductExplorer } from "@/components/home/ProductExplorer";
 import { PartnerRail } from "@/components/home/PartnerRail";
 import { TechFlow } from "@/components/home/TechFlow";
+import { TrustChain } from "@/components/home/TrustChain";
 
 export function HomePage({ locale }: { locale: HomeLocale }) {
   const copy = homeCopy[locale];
@@ -19,11 +22,11 @@ export function HomePage({ locale }: { locale: HomeLocale }) {
       <main id="contenido">
         {/* 02 · Héroe */}
         <HeroScene locale={locale}>
-          <p className="eyebrow">Verified origin infrastructure</p>
+          <p className="eyebrow">{copy.heroEyebrow}</p>
           <h1 id="hero-title" className="hero-title">
             {copy.heroOrigin}
             <br />
-            {copy.heroProof}
+            <span>{copy.heroProof}</span>
           </h1>
           <p className="hero-lead">
             {copy.heroLead}
@@ -38,18 +41,17 @@ export function HomePage({ locale }: { locale: HomeLocale }) {
         {/* 03 · Problema */}
         <section id="plataforma" className="band" aria-labelledby="problema-title">
           <div className="wrap">
-            <p className="eyebrow">{copy.problem}</p>
-            <h2 id="problema-title" className="section-title">{copy.problemTitle}</h2>
-            <p className="section-lead">
-              {copy.problemLead}
-            </p>
+            <div className="editorial-heading">
+              <div>
+                <p className="eyebrow">{copy.problem}</p>
+                <h2 id="problema-title" className="section-title">{copy.problemTitle}</h2>
+              </div>
+              <p className="section-lead">{copy.problemLead}</p>
+            </div>
             <div className="compare">
               <div className="compare-col">
                 <h3 className="compare-head">{copy.beforeTitle}</h3>
                 <ul>{copy.before.map((item) => <li key={item}>{item}</li>)}</ul>
-              </div>
-              <div className="compare-arrow" aria-hidden="true">
-                <svg viewBox="0 0 48 24" width="48" height="24"><path d="M2 12h40m-8-8 8 8-8 8" fill="none" stroke="currentColor" strokeWidth="1.6" /></svg>
               </div>
               <div className="compare-col is-after">
                 <h3 className="compare-head">{copy.afterTitle}</h3>
@@ -58,6 +60,8 @@ export function HomePage({ locale }: { locale: HomeLocale }) {
             </div>
           </div>
         </section>
+
+        <TrustChain locale={locale} />
 
         {/* 04 · Cómo funciona */}
         <section id="como-funciona" className="band band-paper" aria-labelledby="como-title">
@@ -72,9 +76,13 @@ export function HomePage({ locale }: { locale: HomeLocale }) {
         <section id="explorar" className="band" aria-labelledby="explorar-title">
           <span id="explorar-pasaporte" className="anchor" aria-hidden="true" />
           <div className="wrap">
-            <p className="eyebrow">{copy.productEyebrow}</p>
-            <h2 id="explorar-title" className="section-title">{copy.productTitle}</h2>
-            <p className="section-lead">{copy.productLead}</p>
+            <div className="editorial-heading">
+              <div>
+                <p className="eyebrow">{copy.productEyebrow}</p>
+                <h2 id="explorar-title" className="section-title">{copy.productTitle}</h2>
+              </div>
+              <p className="section-lead">{copy.productLead}</p>
+            </div>
             <ProductExplorer locale={locale} />
           </div>
         </section>
@@ -101,6 +109,10 @@ export function HomePage({ locale }: { locale: HomeLocale }) {
         {/* 07 · Para cada participante */}
         <section className="band" aria-label={copy.audience}>
           <div className="wrap audience">
+            <figure className="origin-photo">
+              <Image src="/home/coffee-cherries.webp" alt={copy.coffeeAlt} fill sizes="(max-width: 760px) 92vw, 36vw" />
+              <figcaption className="mono">{copy.coffeeCaption}</figcaption>
+            </figure>
             <article id="cooperativas" className="audience-col" aria-labelledby="coop-title">
               <p className="eyebrow">{copy.coopEyebrow}</p>
               <h2 id="coop-title" className="audience-title">{copy.coopTitle}</h2>
@@ -145,6 +157,7 @@ export function HomePage({ locale }: { locale: HomeLocale }) {
           </div>
           <nav aria-label={copy.platform} className="footer-nav">
             <a href="#como-funciona">{copy.how}</a>
+            <a href="#cadena-de-confianza">{copy.trustChain}</a>
             <a href="#explorar">{copy.product}</a>
             <a href="#tecnologia">{copy.technology}</a>
             <Link href="/cooperativa">{copy.cooperative}</Link>

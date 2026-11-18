@@ -36,7 +36,7 @@ export default function PasaportePublico({ params }: { params: Promise<{ id: str
         <div className="card"><span className="muted">Volumen</span><span className="stat-value mono" style={{ fontSize: "1.4rem" }}>{bags} sacos</span></div>
       </div>
       <section className="card">
-        <h2>Pruebas del lote</h2>
+        <h2 id="pruebas-lote" tabIndex={-1}>Pruebas del lote</h2>
         <Row k="Libre de deforestación post-2020" v={parcels.length > 0 && parcels.every((p) => p.risk === "sin_riesgo") ? "Sí" : "Pendiente"} />
         <Row k="Fuente satelital" v="Whisp (FAO)" />
         <Row k="Organización verificada" v={lot.passportRoot ? "Sí" : "Pendiente"} />
