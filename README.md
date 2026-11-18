@@ -8,7 +8,7 @@
 
 Alpha Pass une el pasaporte verificado de un lote de café o cacao peruano con un escrow por hitos en **USDC o EURC** sobre Stellar. Cada hito del pago (acopio, embarque, llegada) se libera solo si existe la credencial firmada que lo prueba. Al final, el importador tiene el paquete de evidencias para su declaración EUDR y la cooperativa cobra sin intermediario.
 
-Proyecto para Stellar Codember Perú 2026. Estado: **prototipo en modo demo**, contratos con pruebas unitarias, integraciones pendientes de conexión.
+Proyecto para Stellar Codember Perú 2026. Estado: **prototipo con modo demo y adaptadores Testnet**. Las rutas de integración existen, pero el flujo completo de Testnet depende del despliegue de `LotPassport` y de claves de proveedores.
 
 ## Qué hay en este repo
 
@@ -47,7 +47,7 @@ Stellar Testnet · Soroban (Rust, soroban-sdk 29) · Trustless Work · ACTA · C
 
 ## Lo que todavía no está
 
-- Conexión real con Trustless Work, ACTA y Whisp (adaptadores simulados en `apps/web/src/lib/adapters.ts`).
+- Configuración y validación de punta a punta de Trustless Work y Whisp en Testnet; sus adaptadores y rutas ya existen, pero faltan las claves para probarlos.
 - Despliegue de los contratos en Testnet y cliente TypeScript generado.
 - Firma con Stellar Wallets Kit, fee-bump y retiro SEP-24.
 - Ver el límite del MVP sobre la aprobación de hitos en [docs/FLUJO.md](docs/FLUJO.md#límite-honesto-del-mvp).

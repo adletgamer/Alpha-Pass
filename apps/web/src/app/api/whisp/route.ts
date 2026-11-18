@@ -1,7 +1,7 @@
 // Evaluación de riesgo de deforestación por parcela con la API de Whisp (FAO).
 // Documentación: https://whisp.openforis.org/api/openapi.json
 import { assertSameOrigin, errorResponse, serverEnv } from "@/lib/server/env";
-import { riskFromWhisp, type WhispFeatureProps } from "@/lib/whisp";
+import { matchWhispRisks, type WhispFeatureProps } from "@/lib/whisp";
 
 interface Body {
   parcels: { id: string; geometry: { type: "Polygon"; coordinates: number[][][] } }[];
@@ -42,11 +42,7 @@ export async function POST(request: Request) {
       return Response.json({ code: "timeout", message: "Whisp todavía está procesando; intenta de nuevo." }, { status: 504 });
     }
     const features: { properties: WhispFeatureProps }[] = payload.data?.features ?? [];
-    const risks: Record<string, "sin_riesgo" | "alerta"> = {};
-    features.forEach((f, i) => {
-      const id = (f.properties.alphaId as string | undefined) ?? parcels[i]?.id;
-      if (id) risks[id] = riskFromWhisp(f.properties);
-    });
+    const risks = matchWhispRisks(parcels.map((p) => p.id), features);
     return Response.json({ risks, whispVersion: features[0]?.properties.whisp_processing_metadata?.whisp_version ?? null });
   } catch (err) {
     return errorResponse(err, 502);

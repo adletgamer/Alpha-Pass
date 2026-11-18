@@ -15,3 +15,20 @@ export function riskFromWhisp(p: WhispFeatureProps): "sin_riesgo" | "alerta" {
   const disturbed = (p.Ind_04_disturbance_after_2020 ?? "").toLowerCase() === "yes";
   return lowRisk && !disturbed ? "sin_riesgo" : "alerta";
 }
+
+/** Solo se aceptan IDs explícitos que pertenezcan a la solicitud. */
+export function matchWhispRisks(
+  requestedIds: string[],
+  features: { properties: WhispFeatureProps }[],
+): Record<string, "sin_riesgo" | "alerta"> {
+  const requested = new Set(requestedIds);
+  const risks: Record<string, "sin_riesgo" | "alerta"> = {};
+  for (const feature of features) {
+    const id = feature.properties.alphaId;
+    if (typeof id !== "string" || !requested.has(id) || Object.hasOwn(risks, id)) {
+      throw new Error("Whisp devolvió una parcela sin ID válido, ajena a la solicitud o duplicada.");
+    }
+    risks[id] = riskFromWhisp(feature.properties);
+  }
+  return risks;
+}
