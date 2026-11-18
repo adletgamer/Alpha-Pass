@@ -55,7 +55,7 @@ export default function ImportadorPage() {
       )}
 
       <section className="card" aria-labelledby="hitos">
-        <h2 id="hitos">Hitos de pago</h2>
+        <h2 id="hitos" tabIndex={-1}>Hitos de pago</h2>
         {MILESTONES.map((m, i) => {
           const done = escrow?.released[m];
           const gate = canRelease(lot, m);

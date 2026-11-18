@@ -2,10 +2,11 @@
 
 import type { HomeLocale } from "./home-copy";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { LotProvider } from "@/lib/store";
 import { exampleLot } from "@/lib/example-lot";
+import { MILESTONE_SHARE } from "@/lib/domain";
 import CooperativaPage from "@/app/(producto)/cooperativa/page";
 import ImportadorPage from "@/app/(producto)/importador/page";
 import PasaportePublico from "@/app/(producto)/lote/[id]/page";
@@ -72,6 +73,27 @@ const VIEWS_EN = [
 
 type ViewKey = (typeof VIEWS)[number]["key"];
 const lotParams = Promise.resolve({ id: "2026-JAE-014" });
+const sample = exampleLot();
+const DETAIL = {
+  cooperativa: {
+    target: "parcelas",
+    value: sample.parcels.find((parcel) => parcel.risk === "alerta")?.id,
+    label: ["Parcela excluida", "Excluded plot"],
+    note: ["La alerta satelital deja esta parcela fuera del lote de ejemplo.", "The satellite alert keeps this plot out of the sample lot."],
+  },
+  importador: {
+    target: "hitos",
+    value: `${MILESTONE_SHARE.embarque}%`,
+    label: ["Embarque retenido", "Shipment payment held"],
+    note: ["El hito de embarque sigue pendiente de una credencial firmada.", "The shipment milestone still needs a signed credential."],
+  },
+  pasaporte: {
+    target: "pruebas-lote",
+    value: sample.passportRoot && `${sample.passportRoot.slice(0, 12)}…`,
+    label: ["Raíz Merkle de ejemplo", "Sample Merkle root"],
+    note: ["La raíz reúne las pruebas del lote en una huella verificable.", "The root represents the lot’s evidence in a verifiable fingerprint."],
+  },
+} as const;
 
 /**
  * Ventana a las pantallas reales del prototipo. Usa los mismos componentes de
@@ -81,24 +103,43 @@ const lotParams = Promise.resolve({ id: "2026-JAE-014" });
 export function ProductExplorer({ locale }: { locale: HomeLocale }) {
   const views = locale === "en" ? VIEWS_EN : VIEWS;
   const [view, setView] = useState<ViewKey>("cooperativa");
+  const previewRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fromHash = () => {
       if (window.location.hash === "#explorar-pasaporte") setView("pasaporte");
     };
+    const fromPassportLink = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      if (event.target instanceof Element && event.target.closest('a[href="#explorar-pasaporte"]')) {
+        setView("pasaporte");
+      }
+    };
     fromHash();
     window.addEventListener("hashchange", fromHash);
-    return () => window.removeEventListener("hashchange", fromHash);
+    document.addEventListener("click", fromPassportLink);
+    return () => {
+      window.removeEventListener("hashchange", fromHash);
+      document.removeEventListener("click", fromPassportLink);
+    };
   }, []);
 
   const current = views.find((v) => v.key === view)!;
-  const currentIndex = views.findIndex((v) => v.key === view);
+  const detail = DETAIL[view];
+  const language = locale === "en" ? 1 : 0;
+
+  function showDetail() {
+    const heading = previewRef.current?.querySelector<HTMLElement>(`#${detail.target}`);
+    if (!heading) return;
+    heading.focus({ preventScroll: true });
+    heading.scrollIntoView({ block: "center", behavior: "instant" });
+  }
 
   return (
     <div className="explorer">
       <div className="explorer-topline mono">
         <span>{locale === "en" ? "ALPHA PASS / INTERACTIVE PROTOTYPE" : "ALPHA PASS / PROTOTIPO INTERACTIVO"}</span>
-        <span>{String(currentIndex + 1).padStart(2, "0")} / 03</span>
+        <span>2026-JAE-014</span>
       </div>
       <div className="explorer-tabs" role="tablist" aria-label={locale === "en" ? "Product views" : "Vistas del producto"}>
         {views.map((v, i) => (
@@ -137,18 +178,28 @@ export function ProductExplorer({ locale }: { locale: HomeLocale }) {
             {current.metrics.map((metric) => <span key={metric} className="mono">{metric}</span>)}
           </div>
         </div>
-        <div id="explorer-panel" role="tabpanel" aria-labelledby={`explorer-tab-${view}`} className="explorer-window">
-          <div className="explorer-chrome">
-            <span className="explorer-dots" aria-hidden="true"><i /><i /><i /></span>
-            <span className="mono explorer-url">alpha-pass{current.href}</span>
-            <span className="explorer-badge"><span aria-hidden="true" />{locale === "en" ? "STELLAR TESTNET / SAMPLE DATA" : "STELLAR TESTNET / DATOS DE EJEMPLO"}</span>
-          </div>
-          <div className="explorer-body" lang="es" key={view}>
-            <LotProvider preview initial={exampleLot()}>
-              {view === "cooperativa" && <CooperativaPage />}
-              {view === "importador" && <ImportadorPage />}
-              {view === "pasaporte" && <PasaportePublico params={lotParams} />}
-            </LotProvider>
+        <div className="explorer-evidence">
+          <aside className="explorer-detail">
+            <span className="mono explorer-detail-label">{detail.label[language]}</span>
+            <strong className="mono">{detail.value}</strong>
+            <p>{detail.note[language]}</p>
+            <button type="button" onClick={showDetail}>
+              {language ? "Show in demo" : "Ver en la demo"} <span aria-hidden="true">↘</span>
+            </button>
+          </aside>
+          <div id="explorer-panel" role="tabpanel" aria-labelledby={`explorer-tab-${view}`} className="explorer-window">
+            <div className="explorer-chrome">
+              <span className="explorer-dots" aria-hidden="true"><i /><i /><i /></span>
+              <span className="mono explorer-url">alpha-pass{current.href}</span>
+              <span className="explorer-badge"><span aria-hidden="true" />{locale === "en" ? "STELLAR TESTNET / SAMPLE DATA" : "STELLAR TESTNET / DATOS DE EJEMPLO"}</span>
+            </div>
+            <div className="explorer-body" lang="es" key={view} ref={previewRef}>
+              <LotProvider preview initial={exampleLot()}>
+                {view === "cooperativa" && <CooperativaPage />}
+                {view === "importador" && <ImportadorPage />}
+                {view === "pasaporte" && <PasaportePublico params={lotParams} />}
+              </LotProvider>
+            </div>
           </div>
         </div>
         <div className="explorer-foot">
