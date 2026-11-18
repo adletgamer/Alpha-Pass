@@ -1,5 +1,7 @@
 "use client";
 
+import type { HomeLocale } from "./home-copy";
+
 import { useState } from "react";
 
 const NODES = [
@@ -35,13 +37,47 @@ const NODES = [
   },
 ] as const;
 
-export function TechFlow() {
+const NODES_EN = [
+  {
+    key: "whisp",
+    name: "FAO Whisp",
+    role: "Deforestation risk",
+    text: "Analyzes each plot using public satellite data and flags forest loss after 2020 to provide environmental evidence for the lot.",
+  },
+  {
+    key: "acta",
+    name: "ACTA",
+    role: "Verifiable credentials",
+    text: "The cooperative signs W3C credentials with its digital identity (did:stellar). Anyone can verify who made a claim and when.",
+  },
+  {
+    key: "stellar",
+    name: "Stellar",
+    role: "Anchoring and settlement",
+    text: "The LotPassport contract records the passport fingerprint and each milestone proof. Stellar settles payments within seconds at low cost.",
+  },
+  {
+    key: "trustless",
+    name: "Trustless Work",
+    role: "Milestone escrow",
+    text: "Holds the buyer’s payment in a contract and releases it in installments. Alpha Pass approves a milestone only after LotPassport confirms its proof.",
+  },
+  {
+    key: "circle",
+    name: "Circle",
+    role: "Settlement assets",
+    text: "The buyer funds escrow with USDC or EURC, digital dollars and euros issued by Circle.",
+  },
+] as const;
+
+export function TechFlow({ locale }: { locale: HomeLocale }) {
+  const nodes = locale === "en" ? NODES_EN : NODES;
   const [active, setActive] = useState(0);
-  const node = NODES[active];
+  const node = nodes[active];
   return (
     <div className="tech">
-      <ol className="tech-flow" aria-label="Flujo de una operación y la herramienta de cada paso">
-        {NODES.map((n, i) => (
+      <ol className="tech-flow" aria-label={locale === "en" ? "Transaction flow and tools" : "Flujo de una operación y la herramienta de cada paso"}>
+        {nodes.map((n, i) => (
           <li key={n.key}>
             <button
               type="button"
