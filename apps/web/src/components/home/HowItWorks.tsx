@@ -32,6 +32,7 @@ const STEPS = [
 
 export function HowItWorks() {
   const [active, setActive] = useState(0);
+  const [hasProof, setHasProof] = useState(false);
   const step = STEPS[active];
 
   return (
@@ -48,7 +49,6 @@ export function HowItWorks() {
             tabIndex={i === active ? 0 : -1}
             className="how-tab"
             onClick={() => setActive(i)}
-            onMouseEnter={() => setActive(i)}
             onKeyDown={(e) => {
               if (e.key === "ArrowDown" || e.key === "ArrowRight") {
                 e.preventDefault();
@@ -71,28 +71,44 @@ export function HowItWorks() {
       </div>
       <div id="how-panel" role="tabpanel" aria-labelledby={`how-tab-${active}`} className="how-panel">
         <p className="how-text">{step.text}</p>
-        <StepVisual step={active} />
+        <StepVisual step={active} hasProof={hasProof} onProofChange={setHasProof} />
         <ul className="how-detail">
           {step.detail.map((d) => <li key={d}>{d}</li>)}
         </ul>
+        <div className="how-controls">
+          <span className="mono">{String(active + 1).padStart(2, "0")} / {String(STEPS.length).padStart(2, "0")}</span>
+          <button type="button" onClick={() => setActive((active + 1) % STEPS.length)}>
+            {active === STEPS.length - 1 ? "Volver al origen" : "Siguiente etapa"} <span aria-hidden="true">→</span>
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-function StepVisual({ step }: { step: number }) {
+function StepVisual({ step, hasProof, onProofChange }: { step: number; hasProof: boolean; onProofChange: (value: boolean) => void }) {
   if (step === 3) {
     return (
-      <div className="how-visual" aria-label="Hitos de pago del lote de ejemplo">
+      <div className="how-visual" aria-label="Simulación de hitos de pago del lote de ejemplo">
+        <div className="proof-demo">
+          <div>
+            <span className="mono proof-demo-label">Intento de liberar el acopio</span>
+            <strong>{hasProof ? "Prueba verificada · 4,950 USDC liberados" : "Sin credencial · pago retenido"}</strong>
+          </div>
+          <button type="button" className={hasProof ? "proof-switch is-on" : "proof-switch"} aria-pressed={hasProof} onClick={() => onProofChange(!hasProof)}>
+            {hasProof ? "Quitar prueba" : "Añadir prueba"}
+          </button>
+        </div>
         <div className="milestone-bar">
           {MILESTONES.map((m, i) => (
-            <div key={m} className={`milestone-seg${i === 0 ? " is-released" : ""}`} style={{ flexGrow: MILESTONE_SHARE[m] }}>
+            <div key={m} className={`milestone-seg${i === 0 && hasProof ? " is-released" : ""}`} style={{ flexGrow: MILESTONE_SHARE[m] }}>
               <span className="mono">{MILESTONE_SHARE[m]}%</span>
               <span>{MILESTONE_LABEL[m]}</span>
+              <small>{i === 0 && hasProof ? "Liberado" : "Bloqueado"}</small>
             </div>
           ))}
         </div>
-        <p className="how-note">Configuración ilustrativa de la demo. Cada operación define sus propios hitos.</p>
+        <p className="how-note">Simulación del lote de ejemplo. Sin prueba, ningún hito libera fondos.</p>
       </div>
     );
   }

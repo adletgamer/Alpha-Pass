@@ -5,11 +5,11 @@ import type { OriginScene } from "./origin-scene";
 import { HeroFallback } from "./HeroFallback";
 
 const STAGE_COPY = [
-  { key: "origen", label: "Origen", text: "Parcelas georreferenciadas de la cooperativa." },
-  { key: "evidencia", label: "Evidencia", text: "Verificación satelital y credenciales firmadas." },
-  { key: "pasaporte", label: "Pasaporte", text: "Un registro del lote anclado en Stellar." },
-  { key: "escrow", label: "Escrow", text: "El comprador deposita el pago antes del embarque." },
-  { key: "liberacion", label: "Liberación", text: "Cada hito se paga cuando existe su prueba." },
+  { key: "origen", label: "Origen", text: "Parcelas georreferenciadas de la cooperativa.", metric: "05", unit: "parcelas registradas", detail: "Jaén · Cajamarca" },
+  { key: "evidencia", label: "Evidencia", text: "Verificación satelital y credenciales firmadas.", metric: "04 / 05", unit: "parcelas aptas", detail: "Una alerta queda fuera del lote" },
+  { key: "pasaporte", label: "Pasaporte", text: "Un registro del lote anclado en Stellar.", metric: "01", unit: "pasaporte verificable", detail: "Raíz de evidencias en Stellar" },
+  { key: "escrow", label: "Escrow", text: "El comprador deposita el pago antes del embarque.", metric: "100%", unit: "pago reservado", detail: "Hitos 30 · 50 · 20" },
+  { key: "liberacion", label: "Liberación", text: "Cada hito se paga cuando existe su prueba.", metric: "03", unit: "hitos contra prueba", detail: "Acopio · embarque · llegada" },
 ] as const;
 
 function supportsWebGL() {
@@ -38,10 +38,6 @@ export function HeroScene({ children }: { children: React.ReactNode }) {
     const canvas = canvasRef.current;
     const section = sectionRef.current;
     if (!canvas || !section) return;
-    if (!supportsWebGL()) {
-      setFailed(true);
-      return;
-    }
     let disposed = false;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const lowPower = window.matchMedia("(max-width: 760px)").matches || (navigator.hardwareConcurrency ?? 8) <= 4;
@@ -52,10 +48,25 @@ export function HeroScene({ children }: { children: React.ReactNode }) {
       return total > 0 ? Math.min(Math.max(-r.top / total, 0), 1) : 0;
     };
 
-    let onScroll = () => {};
-    let onResize = () => {};
+    const onScroll = () => {
+      const p = progressNow();
+      sceneRef.current?.setProgress(p);
+      setStage(Math.min(STAGE_COPY.length - 1, Math.floor(p * STAGE_COPY.length * 0.999)));
+    };
+    const onResize = () => sceneRef.current?.resize();
     let onMove = (_e: PointerEvent) => {};
     let io: IntersectionObserver | null = null;
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onResize);
+    onScroll();
+    if (!supportsWebGL()) {
+      setFailed(true);
+      return () => {
+        window.removeEventListener("scroll", onScroll);
+        window.removeEventListener("resize", onResize);
+      };
+    }
 
     import("./origin-scene")
       .then(({ OriginScene }) => {
@@ -66,20 +77,12 @@ export function HeroScene({ children }: { children: React.ReactNode }) {
           onHoverParcel: (id, alert) => setParcel(id ? { id, alert } : null),
         });
         sceneRef.current = scene;
-        onScroll = () => {
-          const p = progressNow();
-          scene.setProgress(p);
-          setStage(Math.min(STAGE_COPY.length - 1, Math.floor(p * STAGE_COPY.length * 0.999)));
-        };
-        onResize = () => scene.resize();
         onMove = (e: PointerEvent) => {
           const r = canvas.getBoundingClientRect();
           scene.setPointer(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
         };
         io = new IntersectionObserver(([entry]) => scene.setVisible(entry.isIntersecting));
         io.observe(section);
-        window.addEventListener("scroll", onScroll, { passive: true });
-        window.addEventListener("resize", onResize);
         canvas.addEventListener("pointermove", onMove);
         onScroll();
         scene.resize();
@@ -125,6 +128,14 @@ export function HeroScene({ children }: { children: React.ReactNode }) {
               {parcel.id} · {parcel.alert ? "alerta: excluida del lote" : "sin riesgo · en el lote"}
             </div>
           )}
+          <div className="hero-signal" aria-hidden="true">
+            <span className="hero-signal-kicker mono">Lote de ejemplo · 2026-JAE-014</span>
+            <span className="hero-signal-metric mono">{STAGE_COPY[stage].metric}</span>
+            <strong>{STAGE_COPY[stage].unit}</strong>
+            <span className="hero-signal-detail">{STAGE_COPY[stage].detail}</span>
+            <span className="hero-signal-track"><span style={{ width: `${((stage + 1) / STAGE_COPY.length) * 100}%` }} /></span>
+            <span className="hero-signal-count mono">{String(stage + 1).padStart(2, "0")} / 05</span>
+          </div>
         </div>
         <div className="hero-content">
           {children}
@@ -144,6 +155,7 @@ export function HeroScene({ children }: { children: React.ReactNode }) {
             ))}
           </ol>
           <p className="hero-stage-text" aria-live="polite">{STAGE_COPY[stage].text}</p>
+          <span className="hero-scroll-cue mono" aria-hidden="true">Desplázate para seguir el lote <span>↓</span></span>
         </div>
       </div>
     </section>
