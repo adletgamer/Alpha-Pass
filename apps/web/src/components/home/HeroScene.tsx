@@ -1,5 +1,7 @@
 "use client";
 
+import type { HomeLocale } from "./home-copy";
+
 import { useEffect, useRef, useState } from "react";
 import type { OriginScene } from "./origin-scene";
 import { HeroFallback } from "./HeroFallback";
@@ -10,6 +12,14 @@ const STAGE_COPY = [
   { key: "pasaporte", label: "Pasaporte", text: "Un registro del lote anclado en Stellar.", metric: "01", unit: "pasaporte verificable", detail: "Raíz de evidencias en Stellar" },
   { key: "escrow", label: "Escrow", text: "El comprador deposita el pago antes del embarque.", metric: "100%", unit: "pago reservado", detail: "Hitos 30 · 50 · 20" },
   { key: "liberacion", label: "Liberación", text: "Cada hito se paga cuando existe su prueba.", metric: "03", unit: "hitos contra prueba", detail: "Acopio · embarque · llegada" },
+] as const;
+
+const STAGE_COPY_EN = [
+  { key: "origen", label: "Origin", text: "Georeferenced plots from the cooperative.", metric: "05", unit: "registered plots", detail: "Jaén · Cajamarca" },
+  { key: "evidencia", label: "Evidence", text: "Satellite verification and signed credentials.", metric: "04 / 05", unit: "eligible plots", detail: "One flagged plot excluded" },
+  { key: "pasaporte", label: "Passport", text: "A lot record anchored on Stellar.", metric: "01", unit: "verifiable passport", detail: "Evidence root on Stellar" },
+  { key: "escrow", label: "Escrow", text: "The buyer deposits payment before shipment.", metric: "100%", unit: "payment reserved", detail: "Milestones 30 · 50 · 20" },
+  { key: "liberacion", label: "Release", text: "Payment is released when proof is available for each milestone.", metric: "03", unit: "proof-backed milestones", detail: "Collection · shipment · arrival" },
 ] as const;
 
 function supportsWebGL() {
@@ -25,7 +35,8 @@ function supportsWebGL() {
  * Héroe con desplazamiento: el texto queda fijo mientras la escena avanza por
  * las cinco etapas al hacer scroll. Sin secuestrar el scroll: la página baja normal.
  */
-export function HeroScene({ children }: { children: React.ReactNode }) {
+export function HeroScene({ children, locale }: { children: React.ReactNode; locale: HomeLocale }) {
+  const stageCopy = locale === "en" ? STAGE_COPY_EN : STAGE_COPY;
   const sectionRef = useRef<HTMLElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<OriginScene | null>(null);
@@ -51,7 +62,7 @@ export function HeroScene({ children }: { children: React.ReactNode }) {
     const onScroll = () => {
       const p = progressNow();
       sceneRef.current?.setProgress(p);
-      setStage(Math.min(STAGE_COPY.length - 1, Math.floor(p * STAGE_COPY.length * 0.999)));
+      setStage(Math.min(stageCopy.length - 1, Math.floor(p * stageCopy.length * 0.999)));
     };
     const onResize = () => sceneRef.current?.resize();
     let onMove = (_e: PointerEvent) => {};
@@ -99,7 +110,7 @@ export function HeroScene({ children }: { children: React.ReactNode }) {
       sceneRef.current?.dispose();
       sceneRef.current = null;
     };
-  }, []);
+  }, [stageCopy]);
 
   function goToStage(i: number) {
     const section = sectionRef.current;
@@ -107,7 +118,7 @@ export function HeroScene({ children }: { children: React.ReactNode }) {
     const total = section.offsetHeight - window.innerHeight;
     const top = section.getBoundingClientRect().top + window.scrollY;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    window.scrollTo({ top: top + (total * (i + 0.5)) / STAGE_COPY.length, behavior: reduced ? "auto" : "smooth" });
+    window.scrollTo({ top: top + (total * (i + 0.5)) / stageCopy.length, behavior: reduced ? "auto" : "smooth" });
   }
 
   return (
@@ -119,28 +130,30 @@ export function HeroScene({ children }: { children: React.ReactNode }) {
               ref={canvasRef}
               className={`hero-canvas${ready ? " is-ready" : ""}`}
               role="img"
-              aria-label="Relieve andino con las parcelas de un lote, la evidencia verificada, el pasaporte y la ruta de pago hacia Europa."
+              aria-label={locale === "en" ? "Andean terrain showing the plots, verified evidence, passport and payment route to Europe." : "Relieve andino con las parcelas de un lote, la evidencia verificada, el pasaporte y la ruta de pago hacia Europa."}
             />
           )}
           {(!ready || failed) && <HeroFallback />}
           {parcel && (
             <div className="hero-parcel mono" role="status">
-              {parcel.id} · {parcel.alert ? "alerta: excluida del lote" : "sin riesgo · en el lote"}
+              {parcel.id} · {locale === "en"
+                ? (parcel.alert ? "alert: excluded from lot" : "low risk · included in lot")
+                : (parcel.alert ? "alerta: excluida del lote" : "sin riesgo · en el lote")}
             </div>
           )}
           <div className="hero-signal" aria-hidden="true">
-            <span className="hero-signal-kicker mono">Lote de ejemplo · 2026-JAE-014</span>
-            <span className="hero-signal-metric mono">{STAGE_COPY[stage].metric}</span>
-            <strong>{STAGE_COPY[stage].unit}</strong>
-            <span className="hero-signal-detail">{STAGE_COPY[stage].detail}</span>
-            <span className="hero-signal-track"><span style={{ width: `${((stage + 1) / STAGE_COPY.length) * 100}%` }} /></span>
+            <span className="hero-signal-kicker mono">{locale === "en" ? "Sample lot" : "Lote de ejemplo"} · 2026-JAE-014</span>
+            <span className="hero-signal-metric mono">{stageCopy[stage].metric}</span>
+            <strong>{stageCopy[stage].unit}</strong>
+            <span className="hero-signal-detail">{stageCopy[stage].detail}</span>
+            <span className="hero-signal-track"><span style={{ width: `${((stage + 1) / stageCopy.length) * 100}%` }} /></span>
             <span className="hero-signal-count mono">{String(stage + 1).padStart(2, "0")} / 05</span>
           </div>
         </div>
         <div className="hero-content">
           {children}
-          <ol className="hero-stages" aria-label="Etapas de una operación">
-            {STAGE_COPY.map((s, i) => (
+          <ol className="hero-stages" aria-label={locale === "en" ? "Transaction stages" : "Etapas de una operación"}>
+            {stageCopy.map((s, i) => (
               <li key={s.key}>
                 <button
                   type="button"
@@ -154,8 +167,8 @@ export function HeroScene({ children }: { children: React.ReactNode }) {
               </li>
             ))}
           </ol>
-          <p className="hero-stage-text" aria-live="polite">{STAGE_COPY[stage].text}</p>
-          <span className="hero-scroll-cue mono" aria-hidden="true">Desplázate para seguir el lote <span>↓</span></span>
+          <p className="hero-stage-text" aria-live="polite">{stageCopy[stage].text}</p>
+          <span className="hero-scroll-cue mono" aria-hidden="true">{locale === "en" ? "Scroll to follow the lot" : "Desplázate para seguir el lote"} <span>↓</span></span>
         </div>
       </div>
     </section>
