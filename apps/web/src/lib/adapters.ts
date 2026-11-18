@@ -95,7 +95,7 @@ const testnetProviders: Providers = {
       const { currentAddress, signXdr } = await import("./wallet");
       const signer = await currentAddress();
       const deploy = await api<{ unsignedXdr: string; contractId?: string }>("/api/escrow", {
-        action: "deploy", signer, lotId, asset, amount, receiver: signer,
+        action: "deploy", signer, lotId, asset, amount,
       });
       const deployed = await api<{ contractId?: string }>("/api/escrow", {
         action: "submit", signedXdr: await signXdr(deploy.unsignedXdr),

@@ -4,8 +4,9 @@
 //   action "submit": envía un XDR ya firmado por la wallet
 import { assertSameOrigin, errorResponse, serverEnv } from "@/lib/server/env";
 import { TW, TrustlessWorkError } from "@/lib/server/trustless-work";
-import { MILESTONES, MILESTONE_LABEL, type AssetCode } from "@/lib/domain";
-import { milestoneAmount } from "@/lib/release-gate";
+import type { AssetCode } from "@/lib/domain";
+import { cooperativeForLotOnChain } from "@/lib/server/stellar";
+import { buildEscrowDeploy } from "@/lib/server/escrow-deploy";
 
 const ISSUERS: Record<AssetCode, string | undefined> = {
   USDC: process.env.NEXT_PUBLIC_USDC_ISSUER,
@@ -18,33 +19,17 @@ export async function POST(request: Request) {
     const body = await request.json();
     switch (body.action) {
       case "deploy": {
-        const { signer, lotId, asset, amount, receiver } = body as {
-          signer: string; lotId: string; asset: AssetCode; amount: number; receiver: string;
+        const { signer, lotId, asset, amount } = body as {
+          signer: string; lotId: string; asset: AssetCode; amount: number;
         };
         const issuer = ISSUERS[asset];
         if (!issuer) return Response.json({ code: "invalid", message: `Moneda no soportada: ${asset}` }, { status: 400 });
+        if (typeof signer !== "string" || typeof lotId !== "string" || !lotId || !Number.isFinite(amount) || amount <= 0) {
+          return Response.json({ code: "invalid", message: "Datos inválidos del escrow" }, { status: 400 });
+        }
+        const receiver = await cooperativeForLotOnChain(lotId);
         const roles = serverEnv.roles();
-        const unsigned = await TW.deploy({
-          signer,
-          engagementId: lotId,
-          title: `Alpha Pass · lote ${lotId}`,
-          description: `Pago por hitos del lote ${lotId}; cada hito se libera contra su credencial en LotPassport.`,
-          platformFee: 0,
-          roles: {
-            approvers: [roles.approver],
-            serviceProviders: [receiver],
-            releaseSigners: [roles.approver],
-            disputeResolvers: [roles.disputeResolver],
-            admin: roles.admin,
-            platform: roles.platform,
-          },
-          milestones: MILESTONES.map((m) => ({
-            description: MILESTONE_LABEL[m],
-            amount: milestoneAmount(amount, m),
-            receiver,
-          })),
-          trustline: { symbol: asset, address: issuer },
-        });
+        const unsigned = await TW.deploy(buildEscrowDeploy({ signer, lotId, asset, amount, receiver, issuer, roles }));
         return Response.json(unsigned);
       }
       case "fund": {
