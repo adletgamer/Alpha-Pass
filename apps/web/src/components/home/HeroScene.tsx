@@ -1,5 +1,7 @@
 "use client";
 
+import type { HomeLocale } from "./home-copy";
+
 import { useEffect, useRef, useState } from "react";
 import type { OriginScene } from "./origin-scene";
 import { HeroFallback } from "./HeroFallback";
@@ -10,6 +12,14 @@ const STAGE_COPY = [
   { key: "pasaporte", label: "Pasaporte", text: "Un registro del lote anclado en Stellar." },
   { key: "escrow", label: "Escrow", text: "El comprador deposita el pago antes del embarque." },
   { key: "liberacion", label: "Liberación", text: "Cada hito se paga cuando existe su prueba." },
+] as const;
+
+const STAGE_COPY_EN = [
+  { key: "origen", label: "Origin", text: "Georeferenced plots from the cooperative." },
+  { key: "evidencia", label: "Evidence", text: "Satellite verification and signed credentials." },
+  { key: "pasaporte", label: "Passport", text: "A lot record anchored on Stellar." },
+  { key: "escrow", label: "Escrow", text: "The buyer deposits payment before shipment." },
+  { key: "liberacion", label: "Release", text: "Payment is released when proof is available for each milestone." },
 ] as const;
 
 function supportsWebGL() {
@@ -25,7 +35,8 @@ function supportsWebGL() {
  * Héroe con desplazamiento: el texto queda fijo mientras la escena avanza por
  * las cinco etapas al hacer scroll. Sin secuestrar el scroll: la página baja normal.
  */
-export function HeroScene({ children }: { children: React.ReactNode }) {
+export function HeroScene({ children, locale }: { children: React.ReactNode; locale: HomeLocale }) {
+  const stageCopy = locale === "en" ? STAGE_COPY_EN : STAGE_COPY;
   const sectionRef = useRef<HTMLElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<OriginScene | null>(null);
@@ -116,20 +127,22 @@ export function HeroScene({ children }: { children: React.ReactNode }) {
               ref={canvasRef}
               className={`hero-canvas${ready ? " is-ready" : ""}`}
               role="img"
-              aria-label="Relieve andino con las parcelas de un lote, la evidencia verificada, el pasaporte y la ruta de pago hacia Europa."
+              aria-label={locale === "en" ? "Andean terrain showing the plots, verified evidence, passport and payment route to Europe." : "Relieve andino con las parcelas de un lote, la evidencia verificada, el pasaporte y la ruta de pago hacia Europa."}
             />
           )}
           {(!ready || failed) && <HeroFallback />}
           {parcel && (
             <div className="hero-parcel mono" role="status">
-              {parcel.id} · {parcel.alert ? "alerta: excluida del lote" : "sin riesgo · en el lote"}
+              {parcel.id} · {locale === "en"
+                ? (parcel.alert ? "alert: excluded from lot" : "low risk · included in lot")
+                : (parcel.alert ? "alerta: excluida del lote" : "sin riesgo · en el lote")}
             </div>
           )}
         </div>
         <div className="hero-content">
           {children}
-          <ol className="hero-stages" aria-label="Etapas de una operación">
-            {STAGE_COPY.map((s, i) => (
+          <ol className="hero-stages" aria-label={locale === "en" ? "Transaction stages" : "Etapas de una operación"}>
+            {stageCopy.map((s, i) => (
               <li key={s.key}>
                 <button
                   type="button"
@@ -143,7 +156,7 @@ export function HeroScene({ children }: { children: React.ReactNode }) {
               </li>
             ))}
           </ol>
-          <p className="hero-stage-text" aria-live="polite">{STAGE_COPY[stage].text}</p>
+          <p className="hero-stage-text" aria-live="polite">{stageCopy[stage].text}</p>
         </div>
       </div>
     </section>

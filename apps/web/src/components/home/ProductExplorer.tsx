@@ -1,5 +1,7 @@
 "use client";
 
+import type { HomeLocale } from "./home-copy";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LotProvider } from "@/lib/store";
@@ -29,6 +31,27 @@ const VIEWS = [
   },
 ] as const;
 
+const VIEWS_EN = [
+  {
+    key: "cooperativa",
+    label: "Cooperative",
+    href: "/cooperativa",
+    focus: "Plots, satellite verification, lot passport and payment status.",
+  },
+  {
+    key: "importador",
+    label: "Importer",
+    href: "/importador",
+    focus: "Escrow, payment milestones, required credentials and evidence package.",
+  },
+  {
+    key: "pasaporte",
+    label: "Public passport",
+    href: "/lote/2026-JAE-014",
+    focus: "Scan the QR code to see the lot’s origin, evidence and journey.",
+  },
+] as const;
+
 type ViewKey = (typeof VIEWS)[number]["key"];
 const lotParams = Promise.resolve({ id: "2026-JAE-014" });
 
@@ -37,7 +60,8 @@ const lotParams = Promise.resolve({ id: "2026-JAE-014" });
  * /cooperativa, /importador y /lote/[id] con un estado de ejemplo propio:
  * servicios simulados, sin persistencia y sin firmar transacciones.
  */
-export function ProductExplorer() {
+export function ProductExplorer({ locale }: { locale: HomeLocale }) {
+  const views = locale === "en" ? VIEWS_EN : VIEWS;
   const [view, setView] = useState<ViewKey>("cooperativa");
 
   useEffect(() => {
@@ -49,12 +73,12 @@ export function ProductExplorer() {
     return () => window.removeEventListener("hashchange", fromHash);
   }, []);
 
-  const current = VIEWS.find((v) => v.key === view)!;
+  const current = views.find((v) => v.key === view)!;
 
   return (
     <div className="explorer">
-      <div className="explorer-tabs" role="tablist" aria-label="Vistas del producto">
-        {VIEWS.map((v, i) => (
+      <div className="explorer-tabs" role="tablist" aria-label={locale === "en" ? "Product views" : "Vistas del producto"}>
+        {views.map((v, i) => (
           <button
             key={v.key}
             id={`explorer-tab-${v.key}`}
@@ -68,7 +92,7 @@ export function ProductExplorer() {
             onKeyDown={(e) => {
               if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
               e.preventDefault();
-              const n = VIEWS[(i + (e.key === "ArrowRight" ? 1 : VIEWS.length - 1)) % VIEWS.length];
+              const n = views[(i + (e.key === "ArrowRight" ? 1 : views.length - 1)) % views.length];
               setView(n.key);
               document.getElementById(`explorer-tab-${n.key}`)?.focus();
             }}
@@ -82,9 +106,9 @@ export function ProductExplorer() {
         <div className="explorer-chrome">
           <span className="explorer-dots" aria-hidden="true"><i /><i /><i /></span>
           <span className="mono explorer-url">alpha-pass{current.href}</span>
-          <span className="explorer-badge">Demo en Stellar Testnet · Datos de ejemplo</span>
+          <span className="explorer-badge">{locale === "en" ? "Stellar Testnet demo · Sample data" : "Demo en Stellar Testnet · Datos de ejemplo"}</span>
         </div>
-        <div className="explorer-body" key={view}>
+        <div className="explorer-body" lang="es" key={view}>
           <LotProvider preview initial={exampleLot()}>
             {view === "cooperativa" && <CooperativaPage />}
             {view === "importador" && <ImportadorPage />}
@@ -93,8 +117,8 @@ export function ProductExplorer() {
         </div>
       </div>
       <div className="explorer-foot">
-        <span>Vista previa interactiva y simulada: aquí no se firman transacciones.</span>
-        <Link href={current.href} className="btn btn-ghost">Abrir {current.label.toLowerCase()} en el prototipo</Link>
+        <span>{locale === "en" ? "Interactive simulation. No transactions are signed here." : "Vista previa interactiva y simulada: aquí no se firman transacciones."}</span>
+        <Link href={current.href} className="btn btn-ghost">{locale === "en" ? "Open in prototype (Spanish)" : `Abrir ${current.label.toLowerCase()} en el prototipo`}</Link>
       </div>
     </div>
   );

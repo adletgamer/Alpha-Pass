@@ -1,5 +1,7 @@
 "use client";
 
+import type { HomeLocale } from "./home-copy";
+
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -11,7 +13,15 @@ const LINKS = [
   { href: "#importadores", label: "Para importadores" },
 ];
 
-export function HomeNav() {
+const LINKS_EN = [
+  { href: "#plataforma", label: "Platform" },
+  { href: "#como-funciona", label: "How it works" },
+  { href: "#cooperativas", label: "For cooperatives" },
+  { href: "#importadores", label: "For importers" },
+];
+
+export function HomeNav({ locale }: { locale: HomeLocale }) {
+  const links = locale === "en" ? LINKS_EN : LINKS;
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -32,22 +42,26 @@ export function HomeNav() {
   return (
     <header className={`home-nav${scrolled ? " is-scrolled" : ""}`}>
       <div className="home-nav-inner">
-        <a href="#inicio" className="home-nav-logo" aria-label="Alpha Pass, ir al inicio">
+        <a href="#inicio" className="home-nav-logo" aria-label={locale === "en" ? "Alpha Pass, back to top" : "Alpha Pass, ir al inicio"}>
           <img src="/brand/alpha-pass-logo-horizontal.png" alt="Alpha Pass · Verified origin infrastructure" width={186} height={41} />
         </a>
-        <nav aria-label="Secciones de la página" className="home-nav-links">
-          {LINKS.map((l) => (
+        <nav aria-label={locale === "en" ? "Page sections" : "Secciones de la página"} className="home-nav-links">
+          {links.map((l) => (
             <a key={l.href} href={l.href}>{l.label}</a>
           ))}
         </nav>
         <div className="home-nav-actions">
-          <Link href="/cooperativa" className="btn">Explorar demo</Link>
+          <nav className="home-language" aria-label={locale === "en" ? "Language" : "Idioma"}>
+            <Link href="/" hrefLang="es" lang="es" aria-label="Español" aria-current={locale === "es" ? "page" : undefined}>ES</Link>
+            <Link href="/en" hrefLang="en" lang="en" aria-label="English" aria-current={locale === "en" ? "page" : undefined}>EN</Link>
+          </nav>
+          <Link href="/cooperativa" className="btn">{locale === "en" ? "Explore demo" : "Explorar demo"}</Link>
           <button
             type="button"
             className="home-nav-toggle"
             aria-expanded={open}
             aria-controls="home-nav-mobile"
-            aria-label={open ? "Cerrar menú" : "Abrir menú"}
+            aria-label={open ? (locale === "en" ? "Close menu" : "Cerrar menú") : (locale === "en" ? "Open menu" : "Abrir menú")}
             onClick={() => setOpen((o) => !o)}
           >
             <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -56,11 +70,11 @@ export function HomeNav() {
           </button>
         </div>
       </div>
-      <nav id="home-nav-mobile" aria-label="Secciones de la página" className="home-nav-mobile" hidden={!open}>
-        {LINKS.map((l) => (
+      <nav id="home-nav-mobile" aria-label={locale === "en" ? "Page sections" : "Secciones de la página"} className="home-nav-mobile" hidden={!open}>
+        {links.map((l) => (
           <a key={l.href} href={l.href} onClick={() => setOpen(false)}>{l.label}</a>
         ))}
-        <Link href="/cooperativa" className="btn" onClick={() => setOpen(false)}>Explorar demo</Link>
+        <Link href="/cooperativa" className="btn" onClick={() => setOpen(false)}>{locale === "en" ? "Explore demo" : "Explorar demo"}</Link>
       </nav>
     </header>
   );
