@@ -7,13 +7,17 @@
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate --dialect postgresql --schema src/lib/server/db/schema.ts --out drizzle",
+    "db:migrate": "node scripts/migrate.mjs"
   },
   "dependencies": {
     "@acta-team/credentials": "^1.1.10",
     "@creit.tech/stellar-wallets-kit": "^2.8.0",
     "@stellar/stellar-sdk": "^17.4.0",
+    "drizzle-orm": "^0.45.4",
     "next": "16.4.6",
+    "postgres": "^4.1.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "server-only": "^0.0.1",
@@ -24,6 +28,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/three": "^0.187.0",
+    "drizzle-kit": "^0.31.11",
     "typescript": "^5.9",
     "vitest": "^3"
   }
