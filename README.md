@@ -20,6 +20,7 @@ Proyecto para Stellar Codember Perú 2026. Estado: **prototipo con modo demo y a
 | `docs/FLUJO.md` | Diagrama de flujo, secuencia entre actores y estados de un hito |
 | `docs/INTEGRACIONES.md` | Estado de cada integración del ecosistema (Trustless Work, ACTA, Whisp, Circle) |
 | `docs/BRAND.md` | Resumen de marca y enlace al Brand Book |
+| `docs/BACKEND.md` | Esquema PostgreSQL y estado de la migración Neon |
 
 La ruta `/estado` muestra si están configuradas las integraciones y consulta la salud de Stellar RPC. No muestra secretos ni prueba la validez de las claves de proveedores.
 
