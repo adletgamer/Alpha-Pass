@@ -6,6 +6,7 @@ import { HomeNav } from "@/components/home/HomeNav";
 import { HeroScene } from "@/components/home/HeroScene";
 import { HowItWorks } from "@/components/home/HowItWorks";
 import { ProductExplorer } from "@/components/home/ProductExplorer";
+import { PartnerRail } from "@/components/home/PartnerRail";
 import { TechFlow } from "@/components/home/TechFlow";
 
 export function HomePage({ locale }: { locale: HomeLocale }) {
@@ -75,6 +76,15 @@ export function HomePage({ locale }: { locale: HomeLocale }) {
             <h2 id="explorar-title" className="section-title">{copy.productTitle}</h2>
             <p className="section-lead">{copy.productLead}</p>
             <ProductExplorer locale={locale} />
+          </div>
+        </section>
+
+        <section className="band ecosystem-band" aria-labelledby="ecosystem-title">
+          <div className="wrap">
+            <p className="eyebrow">{copy.ecosystemEyebrow}</p>
+            <h2 id="ecosystem-title" className="section-title">{copy.ecosystemTitle}</h2>
+            <p className="section-lead">{copy.ecosystemLead}</p>
+            <PartnerRail locale={locale} />
           </div>
         </section>
 
