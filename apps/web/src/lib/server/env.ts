@@ -1,4 +1,5 @@
 import "server-only";
+import { assertMutationOrigin, InvalidOriginError } from "./request-origin";
 
 // Lectura de secretos en el servidor. Nunca importar desde un componente cliente.
 
@@ -40,6 +41,9 @@ export const serverEnv = {
 };
 
 export function errorResponse(err: unknown, fallbackStatus = 500) {
+  if (err instanceof InvalidOriginError) {
+    return Response.json({ code: "forbidden", message: err.message }, { status: 403 });
+  }
   if (err instanceof MissingEnvError) {
     return Response.json({ code: "not_configured", message: err.message }, { status: 503 });
   }
@@ -49,9 +53,5 @@ export function errorResponse(err: unknown, fallbackStatus = 500) {
 
 /** Rechaza llamadas que no vienen de la propia app (evita usar el proxy como relay abierto). */
 export function assertSameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  const host = request.headers.get("host");
-  if (origin && host && new URL(origin).host !== host) {
-    throw new Error("Origen no permitido");
-  }
+  assertMutationOrigin(request);
 }
