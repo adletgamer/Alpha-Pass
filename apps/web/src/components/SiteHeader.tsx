@@ -5,16 +5,18 @@ import { usePathname } from "next/navigation";
 import { Logo } from "./Logo";
 import { MODE } from "@/lib/adapters";
 import { WalletButton } from "./WalletButton";
-
-const LINKS = [
-  { href: "/cooperativa", label: "Cooperativa" },
-  { href: "/importador", label: "Importador" },
-  { href: "/verificador", label: "Verificador" },
-  { href: "/lote/2026-JAE-014", label: "Pasaporte público" },
-];
+import { useLot } from "@/lib/store";
 
 export function SiteHeader() {
   const path = usePathname();
+  const { lot } = useLot();
+  const LINKS = [
+    ...(MODE === "testnet" ? [{ href: "/probar", label: "Probar en Testnet" }] : []),
+    { href: "/cooperativa", label: "Cooperativa" },
+    { href: "/importador", label: "Importador" },
+    { href: "/verificador", label: "Verificador" },
+    { href: `/lote/${lot.id}`, label: "Pasaporte público" },
+  ];
   return (
     <>
       {MODE === "demo" && (

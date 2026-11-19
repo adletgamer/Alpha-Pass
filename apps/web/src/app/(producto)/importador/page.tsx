@@ -5,13 +5,13 @@ import Link from "next/link";
 import { eligibleParcels, useLot } from "@/lib/store";
 import { canRelease, milestoneAmount, releasedAmount, GATE_MESSAGE } from "@/lib/release-gate";
 import { MILESTONES, MILESTONE_LABEL, MILESTONE_SHARE, type AssetCode, type Milestone } from "@/lib/domain";
-import { ASSETS } from "@/lib/adapters";
-import { DEMO_ESCROW_AMOUNT } from "@/lib/sample-data";
+import { ASSETS, MODE } from "@/lib/adapters";
+import { DEMO_ESCROW_AMOUNT, TESTNET_ESCROW_AMOUNT } from "@/lib/sample-data";
 
 export default function ImportadorPage() {
   const { lot, busy, fundEscrow, release } = useLot();
   const [asset, setAsset] = useState<AssetCode>("USDC");
-  const [amount, setAmount] = useState(DEMO_ESCROW_AMOUNT);
+  const [amount, setAmount] = useState(MODE === "testnet" ? TESTNET_ESCROW_AMOUNT : DEMO_ESCROW_AMOUNT);
   const [errors, setErrors] = useState<Partial<Record<Milestone, string>>>({});
   const escrow = lot.escrow;
 

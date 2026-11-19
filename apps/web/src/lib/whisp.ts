@@ -4,6 +4,8 @@
 // bajo y no hay perturbación del bosque después de 2020 (fecha de corte EUDR).
 
 export interface WhispFeatureProps {
+  /** ID propio de la parcela; Whisp lo devuelve si se envía `externalIdColumn`. */
+  external_id?: string | null;
   risk_pcrop?: string;
   Ind_04_disturbance_after_2020?: string;
   whisp_processing_metadata?: { whisp_version?: string };
@@ -24,7 +26,7 @@ export function matchWhispRisks(
   const requested = new Set(requestedIds);
   const risks: Record<string, "sin_riesgo" | "alerta"> = {};
   for (const feature of features) {
-    const id = feature.properties.alphaId;
+    const id = feature.properties.external_id ?? feature.properties.alphaId;
     if (typeof id !== "string" || !requested.has(id) || Object.hasOwn(risks, id)) {
       throw new Error("Whisp devolvió una parcela sin ID válido, ajena a la solicitud o duplicada.");
     }

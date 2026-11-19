@@ -18,6 +18,13 @@ describe("Whisp parcel matching", () => {
     ])).toEqual({ A: "sin_riesgo", B: "alerta" });
   });
 
+  it("uses Whisp's external_id (sent with externalIdColumn)", () => {
+    expect(matchWhispRisks(["P-01", "P-05"], [
+      { properties: { plotId: "1", external_id: "P-01", risk_pcrop: "low", Ind_04_disturbance_after_2020: "no" } },
+      { properties: { plotId: "2", external_id: "P-05", risk_pcrop: "high" } },
+    ])).toEqual({ "P-01": "sin_riesgo", "P-05": "alerta" });
+  });
+
   it("rejects missing IDs", () => {
     expect(() => matchWhispRisks(["A"], [{ properties: { risk_pcrop: "low" } }])).toThrow();
   });
