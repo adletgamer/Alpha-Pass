@@ -52,35 +52,125 @@ export function heightAt(x: number, z: number) {
   return h * 6 + ridge + valley + plains;
 }
 
-// ---------- shaders del terreno: curvas de nivel estilo SIG ----------
+// ---------- shaders del terreno: curvas de nivel estilo SIG con relieve sombreado ----------
 const terrainVertex = /* glsl */ `
   varying float vH;
   varying vec2 vXZ;
+  varying vec3 vN;
+  #include <fog_pars_vertex>
   void main() {
     vH = position.y;
     vXZ = position.xz;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    vN = normal;
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    gl_Position = projectionMatrix * mvPosition;
+    #include <fog_vertex>
   }
 `;
 const terrainFragment = /* glsl */ `
   uniform vec3 uBase;
+  uniform vec3 uShade;
   uniform vec3 uLine;
+  uniform vec3 uLight;
   uniform float uStep;
   uniform float uFade;
   varying float vH;
   varying vec2 vXZ;
+  varying vec3 vN;
+  #include <fog_pars_fragment>
   void main() {
     float h = vH / uStep;
     float d = abs(fract(h - 0.5) - 0.5) / fwidth(h);
     float line = 1.0 - min(d, 1.0);
     float major = 1.0 - min(abs(fract(vH / (uStep * 5.0) - 0.5) - 0.5) / fwidth(vH / (uStep * 5.0)), 1.0);
-    float a = line * 0.28 + major * 0.32;
     float edge = 1.0 - smoothstep(uFade * 0.55, uFade, length(vXZ - vec2(-8.0, 0.0)));
-    vec3 col = mix(uBase, uLine, a * edge);
+    // Sombreado de relieve suave (luz del noroeste, como en cartografía).
+    float lambert = clamp(dot(normalize(vN), normalize(uLight)), 0.0, 1.0);
+    float shade = (1.0 - lambert) * 0.55 * edge;
+    vec3 col = mix(uBase, uShade, shade);
+    col = mix(col, uLine, (line * 0.26 + major * 0.34) * edge);
     gl_FragColor = vec4(col, 1.0);
     #include <colorspace_fragment>
+    #include <fog_fragment>
   }
 `;
+
+// ---------- grano de café arábica, modelado por procedimiento ----------
+const BEAN_TONES = {
+  base: new THREE.Color("#93A784"), // verde de café pergamino / grano verde
+  deep: new THREE.Color("#3F5E46"), // surco y sombras
+  light: new THREE.Color("#C8D2B2"), // película plateada en los lomos
+};
+
+/**
+ * Grano de arábica: cuerpo ovalado con lomo convexo, cara ventral plana y
+ * surco central en S. Eje largo = Z, cara plana (con el surco) = +Y.
+ */
+function createBeanGeometry(detail: number) {
+  const g = new THREE.SphereGeometry(1, detail, Math.round(detail * 0.75));
+  g.rotateX(Math.PI / 2); // polos en las puntas del grano, no sobre el surco
+  const pos = g.attributes.position as THREE.BufferAttribute;
+  const colors = new Float32Array(pos.count * 3);
+  const c = new THREE.Color();
+  for (let i = 0; i < pos.count; i++) {
+    let x = pos.getX(i), y = pos.getY(i);
+    const z = pos.getZ(i);
+    // Puntas algo más finas y una asimetría leve: ningún grano es perfecto.
+    const taper = 1 - 0.16 * z * z;
+    x *= taper;
+    x += 0.035 * z * z - 0.02;
+    // Cara ventral aplanada.
+    const ventral = THREE.MathUtils.smoothstep(y, -0.05, 0.25);
+    y = y > 0 ? y * 0.4 : y;
+    // Surco en S, más hondo al centro y que se pierde en las puntas.
+    const cx = 0.11 * Math.sin(z * 2.6);
+    const dx = x - cx;
+    const along = Math.pow(Math.max(0, 1 - z * z), 0.6);
+    const w = 0.075;
+    const groove = Math.exp(-(dx * dx) / (2 * w * w)) * along * ventral;
+    // Labios del surco: ligero abultamiento a cada lado.
+    const lip = Math.exp(-((Math.abs(dx) - 0.17) ** 2) / 0.006) * along * ventral;
+    y += -groove * 0.3 + lip * 0.025;
+    pos.setXYZ(i, x * 0.68, y * 0.62, z);
+    // Color: moteado suave, surco oscuro, lomos más claros.
+    const mottle = noise(x * 7 + 3, z * 7 - 2) * 0.5 + noise(x * 19, z * 17) * 0.25;
+    c.copy(BEAN_TONES.base).lerp(BEAN_TONES.light, Math.max(0, (1 - ventral) * (y < -0.4 ? 0.35 : 0.12) + (mottle - 0.4) * 0.35));
+    c.lerp(BEAN_TONES.deep, Math.min(1, groove * 0.9 + (1 - along) * 0.08));
+    colors.set([c.r, c.g, c.b], i * 3);
+  }
+  g.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  g.computeVertexNormals();
+  return g;
+}
+
+function radialTexture(inner: string, outer: string) {
+  const cv = document.createElement("canvas");
+  cv.width = cv.height = 128;
+  const ctx = cv.getContext("2d")!;
+  const gr = ctx.createRadialGradient(64, 64, 4, 64, 64, 64);
+  gr.addColorStop(0, inner);
+  gr.addColorStop(1, outer);
+  ctx.fillStyle = gr;
+  ctx.fillRect(0, 0, 128, 128);
+  const t = new THREE.CanvasTexture(cv);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+function roundedRect(w: number, h: number, r: number) {
+  const s = new THREE.Shape();
+  const x = -w / 2, y = -h / 2;
+  s.moveTo(x + r, y);
+  s.lineTo(x + w - r, y);
+  s.quadraticCurveTo(x + w, y, x + w, y + r);
+  s.lineTo(x + w, y + h - r);
+  s.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  s.lineTo(x + r, y + h);
+  s.quadraticCurveTo(x, y + h, x, y + h - r);
+  s.lineTo(x, y + r);
+  s.quadraticCurveTo(x, y, x + r, y);
+  return s;
+}
 
 export interface SceneOptions {
   lowPower: boolean;
@@ -99,9 +189,13 @@ export class OriginScene {
   private parcelMeshes: THREE.Mesh[] = [];
   private parcelLines = new Map<string, THREE.LineLoop>();
   private routeGeo!: THREE.TubeGeometry;
+  private routeCurve!: THREE.CatmullRomCurve3;
   private routeIndexCount = 0;
-  private milestones: THREE.Mesh[] = [];
   private originRing!: THREE.Mesh;
+  private bean!: THREE.Group;
+  private beanShadow!: THREE.Mesh;
+  private beanBaseY = 0;
+  private courier!: THREE.Mesh;
   private raycaster = new THREE.Raycaster();
   private pointer = new THREE.Vector2(2, 2);
   private progress = 0;
@@ -127,19 +221,34 @@ export class OriginScene {
     return o;
   }
 
-  private lineMat(color: THREE.Color, opacity: number, from = 0, to = 0) {
-    const m = this.track(new THREE.LineBasicMaterial({ color, transparent: true, opacity: from > 0 ? 0 : opacity }));
+  private fade<M extends THREE.Material & { opacity: number }>(m: M, opacity: number, from: number, to: number) {
+    m.transparent = true;
+    m.opacity = from > 0 ? 0 : opacity;
     if (from > 0) this.fadeables.push({ material: m, base: opacity, from, to });
     return m;
+  }
+
+  private lineMat(color: THREE.Color, opacity: number, from = 0, to = 0) {
+    return this.fade(this.track(new THREE.LineBasicMaterial({ color })), opacity, from, to);
   }
 
   private basicMat(color: THREE.Color, opacity: number, from = 0, to = 0, side: THREE.Side = THREE.FrontSide) {
-    const m = this.track(new THREE.MeshBasicMaterial({ color, transparent: true, opacity: from > 0 ? 0 : opacity, side, depthWrite: false }));
-    if (from > 0) this.fadeables.push({ material: m, base: opacity, from, to });
-    return m;
+    return this.fade(this.track(new THREE.MeshBasicMaterial({ color, side, depthWrite: false })), opacity, from, to);
+  }
+
+  /** Material iluminado para los objetos con volumen (sellos, pasaporte, hitos). */
+  private litMat(color: THREE.Color, from = 0, to = 0, extra: THREE.MeshStandardMaterialParameters = {}) {
+    return this.fade(this.track(new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0, ...extra })), 1, from, to);
   }
 
   private build() {
+    // Luz de cielo cálida y sol bajo del noroeste: volumen sin perder la paleta.
+    const hemi = new THREE.HemisphereLight(0xfbf8f2, 0x2e6b52, 1.7);
+    const sun = new THREE.DirectionalLight(0xfff3e0, 2.1);
+    sun.position.set(-30, 50, 26);
+    sun.target.position.set(-16, 0, 6);
+    this.scene.add(hemi, sun, sun.target);
+
     const seg = this.opts.lowPower ? 110 : 200;
     const size = 150;
     const geo = this.track(new THREE.PlaneGeometry(size, size, seg, seg));
@@ -151,55 +260,94 @@ export class OriginScene {
     const terrainMat = this.track(new THREE.ShaderMaterial({
       vertexShader: terrainVertex,
       fragmentShader: terrainFragment,
+      fog: true,
       uniforms: {
+        ...THREE.UniformsLib.fog,
         uBase: { value: COLORS.parchment },
+        uShade: { value: new THREE.Color("#D9D6C3") },
         uLine: { value: COLORS.green },
+        uLight: { value: new THREE.Vector3(-0.5, 0.75, 0.35) },
         uStep: { value: 0.7 },
         uFade: { value: 70 },
       },
     }));
     this.scene.add(new THREE.Mesh(geo, terrainMat));
 
-    // Parcelas: borde sobre el relieve + relleno invisible para el puntero.
+    // Parcelas: borde sobre el relieve + relleno para el puntero.
     for (const p of PARCELS) {
       const pts = p.pts.map(([x, z]) => new THREE.Vector3(x, heightAt(x, z) + 0.12, z));
       const lg = this.track(new THREE.BufferGeometry().setFromPoints(densify(pts, 6)));
       const line = new THREE.LineLoop(lg, this.lineMat(p.alert ? COLORS.cherry : COLORS.green, p.alert ? 0.75 : 0.9));
       this.parcelLines.set(p.id, line);
       this.scene.add(line);
-      const shape = new THREE.Shape(p.pts.map(([x, z]) => new THREE.Vector2(x, -z)));
-      const sg = this.track(new THREE.ShapeGeometry(shape));
-      sg.rotateX(-Math.PI / 2);
-      const avgY = pts.reduce((s, v) => s + v.y, 0) / pts.length;
-      sg.translate(0, avgY + 0.05, 0);
+      // Relleno drapeado sobre el relieve (malla bilineal), para que calce con el borde.
+      const sg = this.track(drapedQuad(p.pts, this.opts.lowPower ? 8 : 12));
       const fill = new THREE.Mesh(sg, this.basicMat(p.alert ? COLORS.cherry : COLORS.green, p.alert ? 0.08 : 0.12, 0, 0, THREE.DoubleSide));
       fill.userData = { id: p.id, alert: p.alert };
       this.parcelMeshes.push(fill);
       this.scene.add(fill);
     }
 
-    // Nodo de origen (rojo cereza) y su anillo.
+    // ----- Origen: marcador de ubicación (cereza) + grano de café -----
     const oy = heightAt(ORIGIN.x, ORIGIN.y);
-    const origin = new THREE.Mesh(this.track(new THREE.SphereGeometry(0.42, 24, 16)), this.track(new THREE.MeshBasicMaterial({ color: COLORS.cherry })));
-    origin.position.set(ORIGIN.x, oy + 0.45, ORIGIN.y);
-    this.scene.add(origin);
+    const pin = new THREE.Mesh(this.track(new THREE.CircleGeometry(0.34, 32)), this.basicMat(COLORS.cherry, 1, 0, 0, THREE.DoubleSide));
+    pin.rotation.x = -Math.PI / 2;
+    pin.position.set(ORIGIN.x, oy + 0.16, ORIGIN.y);
+    this.scene.add(pin);
     this.originRing = new THREE.Mesh(this.track(new THREE.RingGeometry(0.75, 0.86, 48)), this.basicMat(COLORS.cherry, 0.55, 0, 0, THREE.DoubleSide));
     this.originRing.rotation.x = -Math.PI / 2;
     this.originRing.position.set(ORIGIN.x, oy + 0.2, ORIGIN.y);
     this.scene.add(this.originRing);
 
-    // Evidencia: nodos firmados por encima del origen, unidos a cada parcela apta.
+    const beanGeo = this.track(createBeanGeometry(this.opts.lowPower ? 48 : 96));
+    const beanMat = this.track(new THREE.MeshPhysicalMaterial({
+      vertexColors: true,
+      roughness: 0.62,
+      sheen: 0.6,
+      sheenRoughness: 0.5,
+      sheenColor: new THREE.Color("#EEF0DC"),
+    }));
+    const beanMesh = new THREE.Mesh(beanGeo, beanMat);
+    beanMesh.scale.setScalar(1.5);
+    this.bean = new THREE.Group();
+    this.bean.add(beanMesh);
+    this.beanBaseY = oy + 2.3;
+    this.bean.position.set(ORIGIN.x, this.beanBaseY, ORIGIN.y);
+    this.scene.add(this.bean);
+    // Hilo de ubicación: une el grano con su punto en el mapa.
+    const tether = [new THREE.Vector3(ORIGIN.x, oy + 0.18, ORIGIN.y), new THREE.Vector3(ORIGIN.x, this.beanBaseY - 0.55, ORIGIN.y)];
+    this.scene.add(new THREE.LineSegments(this.track(new THREE.BufferGeometry().setFromPoints(tether)), this.lineMat(COLORS.cherry, 0.7)));
+    // Sombra de contacto suave (textura procedural de 128 px).
+    const shadowTex = this.track(radialTexture("rgba(31,77,58,0.55)", "rgba(31,77,58,0)"));
+    this.beanShadow = new THREE.Mesh(
+      this.track(new THREE.PlaneGeometry(2.6, 3.6)),
+      this.track(new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false })),
+    );
+    this.beanShadow.rotation.x = -Math.PI / 2;
+    this.beanShadow.position.set(ORIGIN.x, oy + 0.1, ORIGIN.y);
+    this.scene.add(this.beanShadow);
+
+    // ----- Evidencia: sellos hexagonales firmados, unidos a cada parcela apta -----
     const evidence = [
       new THREE.Vector3(ORIGIN.x - 3.2, oy + 5.2, ORIGIN.y - 1.5),
       new THREE.Vector3(ORIGIN.x + 0.4, oy + 6.4, ORIGIN.y - 2.4),
       new THREE.Vector3(ORIGIN.x + 3.6, oy + 5.4, ORIGIN.y - 0.8),
     ];
-    const evMat = this.basicMat(COLORS.green, 1, 0.16, 0.3);
-    const nodeGeo = this.track(new THREE.OctahedronGeometry(0.34, 0));
+    const sealGeo = this.track(new THREE.CylinderGeometry(0.5, 0.5, 0.16, 6));
+    sealGeo.rotateX(Math.PI / 2);
+    const sealMat = this.litMat(COLORS.green, 0.16, 0.3, { roughness: 0.4 });
+    const sealDotGeo = this.track(new THREE.CircleGeometry(0.15, 24));
+    const sealDotMat = this.basicMat(COLORS.parchment, 1, 0.18, 0.3);
+    const facing = new THREE.Vector3(-6, 18, 32);
     for (const e of evidence) {
-      const n = new THREE.Mesh(nodeGeo, evMat);
-      n.position.copy(e);
-      this.scene.add(n);
+      const seal = new THREE.Group();
+      seal.add(new THREE.Mesh(sealGeo, sealMat));
+      const dot = new THREE.Mesh(sealDotGeo, sealDotMat);
+      dot.position.z = 0.09;
+      seal.add(dot);
+      seal.position.copy(e);
+      seal.lookAt(facing);
+      this.scene.add(seal);
     }
     const links: THREE.Vector3[] = [];
     for (const p of PARCELS.filter((x) => !x.alert)) {
@@ -207,54 +355,82 @@ export class OriginScene {
       const from = new THREE.Vector3(c.x, heightAt(c.x, c.y) + 0.15, c.y);
       for (const e of evidence) links.push(from, e);
     }
-    this.scene.add(new THREE.LineSegments(this.track(new THREE.BufferGeometry().setFromPoints(links)), this.lineMat(COLORS.green, 0.32, 0.16, 0.3)));
+    this.scene.add(new THREE.LineSegments(this.track(new THREE.BufferGeometry().setFromPoints(links)), this.lineMat(COLORS.green, 0.28, 0.16, 0.3)));
 
-    // Pasaporte: un marco que agrupa la evidencia en un solo registro anclado.
+    // ----- Pasaporte: tarjeta con grosor que agrupa la evidencia en un registro -----
     const pTop = oy + 9.4;
-    const frame = [
-      new THREE.Vector3(ORIGIN.x - 4.6, pTop, ORIGIN.y - 1.6), new THREE.Vector3(ORIGIN.x + 4.6, pTop, ORIGIN.y - 1.6),
-      new THREE.Vector3(ORIGIN.x + 4.6, pTop + 3.2, ORIGIN.y - 1.6), new THREE.Vector3(ORIGIN.x - 4.6, pTop + 3.2, ORIGIN.y - 1.6),
-    ];
-    this.scene.add(new THREE.LineLoop(this.track(new THREE.BufferGeometry().setFromPoints(frame)), this.lineMat(COLORS.green, 0.95, 0.36, 0.5)));
-    const plate = new THREE.Mesh(this.track(new THREE.PlaneGeometry(9.2, 3.2)), this.basicMat(COLORS.green, 0.1, 0.36, 0.5, THREE.DoubleSide));
-    plate.position.set(ORIGIN.x, pTop + 1.6, ORIGIN.y - 1.6);
-    this.scene.add(plate);
-    const rows: THREE.Vector3[] = [];
-    for (let i = 0; i < 3; i++) {
-      const y = pTop + 0.8 + i * 0.8;
-      rows.push(new THREE.Vector3(ORIGIN.x - 3.8, y, ORIGIN.y - 1.6), new THREE.Vector3(ORIGIN.x + (i === 2 ? 0.4 : 2.8), y, ORIGIN.y - 1.6));
-    }
-    this.scene.add(new THREE.LineSegments(this.track(new THREE.BufferGeometry().setFromPoints(rows)), this.lineMat(COLORS.green, 0.55, 0.4, 0.52)));
-    const anchor = [new THREE.Vector3(ORIGIN.x, pTop, ORIGIN.y - 1.6), evidence[1]];
+    const cardZ = ORIGIN.y - 1.6;
+    const depth = 0.18;
+    const cardGeo = this.track(new THREE.ExtrudeGeometry(roundedRect(9.2, 3.2, 0.42), {
+      depth, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 2, curveSegments: 6,
+    }));
+    const card = new THREE.Mesh(cardGeo, this.litMat(new THREE.Color("#FBF8F2"), 0.36, 0.5, { roughness: 0.7 }));
+    card.position.set(ORIGIN.x, pTop + 1.6, cardZ - depth);
+    this.scene.add(card);
+    const rimPts = roundedRect(9.2, 3.2, 0.42).getPoints(10).map((v) => new THREE.Vector3(ORIGIN.x + v.x, pTop + 1.6 + v.y, cardZ + 0.07));
+    this.scene.add(new THREE.LineLoop(this.track(new THREE.BufferGeometry().setFromPoints(rimPts)), this.lineMat(COLORS.green, 0.95, 0.36, 0.5)));
+    // Franja superior verde, sello y filas de datos.
+    const band = new THREE.Mesh(this.track(new THREE.PlaneGeometry(8.4, 0.12)), this.basicMat(COLORS.green, 0.9, 0.4, 0.52));
+    band.position.set(ORIGIN.x, pTop + 2.75, cardZ + 0.08);
+    this.scene.add(band);
+    const cardSeal = new THREE.Mesh(sealGeo, this.litMat(COLORS.green, 0.4, 0.52, { roughness: 0.4 }));
+    cardSeal.scale.setScalar(1.5);
+    cardSeal.position.set(ORIGIN.x - 3.4, pTop + 1.4, cardZ + 0.12);
+    this.scene.add(cardSeal);
+    const cardDot = new THREE.Mesh(sealDotGeo, this.basicMat(COLORS.cherry, 1, 0.42, 0.52));
+    cardDot.scale.setScalar(1.4);
+    cardDot.position.set(ORIGIN.x - 3.4, pTop + 1.4, cardZ + 0.26);
+    this.scene.add(cardDot);
+    const rowGeo = this.track(new THREE.PlaneGeometry(1, 0.14));
+    const rowMat = this.basicMat(COLORS.green, 0.5, 0.42, 0.54);
+    [[5.6, 0.7], [4.8, 1.4], [2.8, 2.1]].forEach(([w, dy]) => {
+      const r = new THREE.Mesh(rowGeo, rowMat);
+      r.scale.x = w;
+      r.position.set(ORIGIN.x - 2.2 + w / 2, pTop + 2.4 - dy, cardZ + 0.08);
+      this.scene.add(r);
+    });
+    const anchor = [new THREE.Vector3(ORIGIN.x, pTop, cardZ), evidence[1]];
     this.scene.add(new THREE.LineSegments(this.track(new THREE.BufferGeometry().setFromPoints(anchor)), this.lineMat(COLORS.green, 0.5, 0.36, 0.5)));
 
-    // Ruta hacia Europa (al noreste, más allá del horizonte).
+    // ----- Ruta hacia Europa (al noreste, más allá del horizonte) -----
     const curve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(ORIGIN.x, pTop + 1.6, ORIGIN.y - 1.6),
+      new THREE.Vector3(ORIGIN.x, pTop + 1.6, cardZ),
       new THREE.Vector3(ORIGIN.x + 8, pTop + 4, ORIGIN.y - 8),
       new THREE.Vector3(ORIGIN.x + 24, pTop + 6, ORIGIN.y - 22),
       new THREE.Vector3(ORIGIN.x + 42, pTop + 4, ORIGIN.y - 38),
       new THREE.Vector3(ORIGIN.x + 58, pTop + 1, ORIGIN.y - 52),
     ]);
-    this.routeGeo = this.track(new THREE.TubeGeometry(curve, 220, 0.11, 8, false));
+    this.routeCurve = curve;
+    // Trazo previo punteado: anticipa el recorrido completo antes de que avance.
+    const ghostGeo = this.track(new THREE.BufferGeometry().setFromPoints(curve.getSpacedPoints(160)));
+    const ghost = new THREE.Line(ghostGeo, this.fade(this.track(new THREE.LineDashedMaterial({ color: COLORS.green, dashSize: 0.7, gapSize: 0.55 })), 0.4, 0.48, 0.56));
+    ghost.computeLineDistances();
+    this.scene.add(ghost);
+    this.routeGeo = this.track(new THREE.TubeGeometry(curve, 240, 0.15, this.opts.lowPower ? 8 : 12, false));
     this.routeIndexCount = this.routeGeo.index!.count;
     this.routeGeo.setDrawRange(0, 0);
-    this.scene.add(new THREE.Mesh(this.routeGeo, this.track(new THREE.MeshBasicMaterial({ color: COLORS.green }))));
+    this.scene.add(new THREE.Mesh(this.routeGeo, this.track(new THREE.MeshStandardMaterial({ color: COLORS.green, roughness: 0.45 }))));
+    // El lote viaja: un grano pequeño marca la cabeza de la ruta.
+    this.courier = new THREE.Mesh(beanGeo, beanMat);
+    this.courier.scale.setScalar(0.85);
+    this.courier.visible = false;
+    this.scene.add(this.courier);
 
-    // Hitos del pago sobre la ruta: acopio, embarque, llegada.
-    const ringGeo = this.track(new THREE.TorusGeometry(0.8, 0.09, 10, 40));
-    const discGeo = this.track(new THREE.CircleGeometry(0.62, 32));
+    // ----- Hitos del pago sobre la ruta: acopio, embarque, llegada (30 · 50 · 20) -----
+    const ringGeo = this.track(new THREE.TorusGeometry(0.95, 0.12, 14, 48));
+    const coinGeo = this.track(new THREE.CylinderGeometry(0.66, 0.66, 0.2, 40));
+    coinGeo.rotateX(Math.PI / 2);
     [0.12, 0.5, 0.96].forEach((t, i) => {
       const p = curve.getPointAt(t);
-      const ring = new THREE.Mesh(ringGeo, this.basicMat(COLORS.green, 1, 0.6 + i * 0.06, 0.66 + i * 0.06, THREE.DoubleSide));
+      const face = p.clone().add(new THREE.Vector3(0, 0.35, 1));
+      const ring = new THREE.Mesh(ringGeo, this.litMat(COLORS.green, 0.6 + i * 0.06, 0.66 + i * 0.06, { roughness: 0.35 }));
       ring.position.copy(p);
-      ring.lookAt(p.clone().add(new THREE.Vector3(0, 0, 1)));
+      ring.lookAt(face);
       this.scene.add(ring);
-      const disc = new THREE.Mesh(discGeo, this.basicMat(i === 0 ? COLORS.cherry : COLORS.green, 0.95, 0.82 + i * 0.06, 0.86 + i * 0.06, THREE.DoubleSide));
-      disc.position.copy(p);
-      disc.lookAt(p.clone().add(new THREE.Vector3(0, 0, 1)));
-      this.milestones.push(disc);
-      this.scene.add(disc);
+      const coin = new THREE.Mesh(coinGeo, this.litMat(i === 0 ? COLORS.cherry : COLORS.green, 0.82 + i * 0.06, 0.86 + i * 0.06, { roughness: 0.4 }));
+      coin.position.copy(p);
+      coin.lookAt(face);
+      this.scene.add(coin);
     });
   }
 
@@ -263,7 +439,7 @@ export class OriginScene {
   private static KEYS = [
     { p: 0, pos: [-4, 24, 40], look: [-15, 2, 6] },
     { p: 0.24, pos: [-6, 18, 32], look: [-15, 4, 5] },
-    { p: 0.48, pos: [-8, 24, 36], look: [-20, 7, 4] },
+    { p: 0.48, pos: [-8, 27, 41], look: [-19, 8.6, 4] },
     { p: 0.74, pos: [-2, 54, 64], look: [-3, 8, -12] },
     { p: 1, pos: [10, 70, 74], look: [8, 8, -18] },
   ];
@@ -353,6 +529,27 @@ export class OriginScene {
     }
     const routeT = THREE.MathUtils.smoothstep(p, 0.5, 0.78);
     this.routeGeo.setDrawRange(0, Math.floor((this.routeIndexCount * routeT) / 3) * 3);
+    this.courier.visible = routeT > 0.015;
+    if (this.courier.visible) {
+      const at = Math.min(routeT, 0.995);
+      const head = this.routeCurve.getPointAt(at);
+      this.courier.position.copy(head).add(new THREE.Vector3(0, 0.55, 0));
+      this.courier.lookAt(head.add(this.routeCurve.getTangentAt(at)).add(new THREE.Vector3(0, 0.55, 0)));
+      this.courier.rotateZ(Math.PI); // cara con el surco hacia abajo: se ve el lomo
+    }
+    // Grano: postura ligada al avance (gira para mostrar surco y lomo) y crece al alejarse la cámara.
+    const t = (performance.now() - this.start) / 1000;
+    const idle = this.opts.reducedMotion ? 0 : 1;
+    this.bean.rotation.set(
+      0.5 - 0.3 * p + idle * 0.04 * Math.sin(t * 0.9),
+      -0.55 + p * Math.PI * 1.15 + idle * 0.12 * Math.sin(t * 0.35),
+      0.22 - 0.14 * p,
+    );
+    const grow = 1 + 0.9 * THREE.MathUtils.smoothstep(p, 0.5, 0.9);
+    this.bean.scale.setScalar(grow);
+    const bob = idle * 0.1 * Math.sin(t * 1.1);
+    this.bean.position.y = this.beanBaseY + (grow - 1) * 1.1 + bob;
+    this.beanShadow.scale.setScalar(grow * (1 - bob * 0.4));
     if (!this.opts.reducedMotion) {
       const s = 1 + 0.35 * Math.sin((performance.now() - this.start) / 520);
       this.originRing.scale.setScalar(s);
@@ -385,6 +582,30 @@ function centroid(pts: [number, number][]) {
   const x = pts.reduce((s, p) => s + p[0], 0) / pts.length;
   const y = pts.reduce((s, p) => s + p[1], 0) / pts.length;
   return new THREE.Vector2(x, y);
+}
+
+/** Cuadrilátero subdividido que sigue el relieve (relleno de parcela). */
+function drapedQuad(q: [number, number][], n: number) {
+  const [p0, p1, p2, p3] = q;
+  const verts: number[] = [];
+  const idx: number[] = [];
+  for (let j = 0; j <= n; j++) {
+    for (let i = 0; i <= n; i++) {
+      const u = i / n, v = j / n;
+      const ax = p0[0] + (p1[0] - p0[0]) * u, az = p0[1] + (p1[1] - p0[1]) * u;
+      const bx = p3[0] + (p2[0] - p3[0]) * u, bz = p3[1] + (p2[1] - p3[1]) * u;
+      const x = ax + (bx - ax) * v, z = az + (bz - az) * v;
+      verts.push(x, heightAt(x, z) + 0.06, z);
+      if (i < n && j < n) {
+        const a = j * (n + 1) + i, b = a + 1, c = a + n + 1, d = c + 1;
+        idx.push(a, c, b, b, c, d);
+      }
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(verts, 3));
+  g.setIndex(idx);
+  return g;
 }
 
 /** Interpola puntos en cada lado para que el borde siga el relieve. */
