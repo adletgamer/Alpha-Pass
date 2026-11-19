@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useLot } from "@/lib/store";
 import { MILESTONES, MILESTONE_LABEL, type Milestone } from "@/lib/domain";
+import { callTestnet, useTestnetWallet } from "@/components/TestnetWallet";
 
 const ISSUERS: Record<Milestone, string> = {
   acopio: "Almacén de acopio (demo)",
@@ -17,33 +19,64 @@ const EVIDENCE_HINT: Record<Milestone, string> = {
 };
 
 export default function VerificadorPage() {
-  const { lot, busy, attest } = useLot();
+  const { lot, mode, busy, attest } = useLot();
+  const wallet = useTestnetWallet();
   const next = MILESTONES.find((m) => !lot.attestations.some((a) => a.milestone === m));
   const [evidence, setEvidence] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+  const allowed = mode === "demo" || Boolean(next && wallet.status?.verifierFor.includes(next));
 
   async function sign(m: Milestone) {
-    setError(await attest(m, ISSUERS[m], evidence || `${lot.id}:${m}`));
-    setEvidence("");
+    setError(null);
+    setChecking(true);
+    try {
+      let issuer = ISSUERS[m];
+      if (mode === "testnet") {
+        const { currentAddress } = await import("@/lib/wallet");
+        const address = await currentAddress();
+        if (address !== wallet.address) throw new Error("Cambiaste de cuenta. Conecta de nuevo la cuenta que va a firmar.");
+        const status = await callTestnet<{ verifierFor: Milestone[] }>({ action: "status", address });
+        if (!status.verifierFor.includes(m)) throw new Error("Esta cuenta no tiene permiso para firmar este hito.");
+        issuer = address;
+      }
+      const failure = await attest(m, issuer, evidence || `${lot.id}:${m}`);
+      setError(failure);
+      if (!failure) setEvidence("");
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : "No se pudo firmar el hito.");
+    } finally {
+      setChecking(false);
+    }
   }
 
   return (
     <main className="container">
       <div>
-        <div className="muted">Verificador autorizado en LotPassport</div>
+        <div className="muted">{mode === "testnet" ? "Verificador en Stellar Testnet" : "Verificador de ejemplo"}</div>
         <h1 className="mono">Lote {lot.id}</h1>
       </div>
       <section className="card" aria-labelledby="firmar">
         <h2 id="firmar">Firmar el siguiente hito</h2>
+        {mode === "testnet" && next && !allowed && (
+          <p className="muted" style={{ margin: 0 }}>
+            {wallet.reading ? "Consultando permisos de la wallet…" :
+              wallet.address ? "El permiso para este hito aún no está confirmado." : "Conecta una wallet registrada como verificador de prueba."}{" "}
+            <Link href="/probar">Preparar la cuenta en Testnet</Link>
+          </p>
+        )}
         {!lot.passportRoot ? (
           <p className="error" style={{ margin: 0 }}>El lote todavía no tiene pasaporte anclado.</p>
         ) : next ? (
           <>
-            <p style={{ margin: 0 }}>Hito pendiente: <strong>{MILESTONE_LABEL[next]}</strong>. Firmas como: {ISSUERS[next]}.</p>
+            <p style={{ margin: 0 }}>Hito pendiente: <strong>{MILESTONE_LABEL[next]}</strong>.
+              {mode === "demo" && ` Firmas como: ${ISSUERS[next]}.`}
+              {mode === "testnet" && allowed && " La cuenta conectada tiene permiso para firmarlo."}
+            </p>
             <label>Evidencia (se guarda solo su hash SHA-256)
               <input className="input" value={evidence} onChange={(e) => setEvidence(e.target.value)} placeholder={EVIDENCE_HINT[next]} />
             </label>
-            <div><button className="btn" type="button" disabled={busy} onClick={() => sign(next)}>Firmar credencial de {MILESTONE_LABEL[next].toLowerCase()}</button></div>
+            <div><button className="btn" type="button" disabled={busy || checking || wallet.connecting || !allowed} onClick={() => sign(next)}>{checking ? "Comprobando y firmando…" : `Firmar credencial de ${MILESTONE_LABEL[next].toLowerCase()}`}</button></div>
             {error && <span className="error" role="alert">{error}</span>}
           </>
         ) : (
@@ -60,7 +93,7 @@ export default function VerificadorPage() {
               {lot.attestations.map((a) => (
                 <tr key={a.milestone}>
                   <td>{MILESTONE_LABEL[a.milestone]}</td>
-                  <td>{a.issuer}</td>
+                  <td style={{ overflowWrap: "anywhere" }}>{a.issuer}</td>
                   <td className="mono">{a.evidenceHash.slice(0, 16)}…</td>
                   <td className="mono">{new Date(a.timestamp).toLocaleString("es-PE")}</td>
                 </tr>

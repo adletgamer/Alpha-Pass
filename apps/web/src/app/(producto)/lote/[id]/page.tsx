@@ -3,7 +3,6 @@
 import { use, useEffect, useState } from "react";
 import { eligibleParcels, useLot } from "@/lib/store";
 import { MILESTONES, MILESTONE_LABEL, type Milestone } from "@/lib/domain";
-import { MODE } from "@/lib/adapters";
 
 interface OnChainLot {
   cooperative: string;
@@ -54,10 +53,10 @@ function OnChainPassport({ id }: { id: string }) {
 
 export default function PasaportePublico({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { lot } = useLot();
+  const { lot, mode } = useLot();
 
   if (id !== lot.id) {
-    if (MODE === "testnet") {
+    if (mode === "testnet") {
       return (
         <main className="container" style={{ maxWidth: 520 }}>
           <section className="card card-dark">
@@ -85,7 +84,9 @@ export default function PasaportePublico({ params }: { params: Promise<{ id: str
     <main className="container" style={{ maxWidth: 520 }}>
       <section className="card card-dark">
         <span className="pill" style={{ background: "var(--ap-green-600)", color: "var(--ap-parchment)", alignSelf: "flex-start" }}>
-          {lot.passportRoot ? "Pasaporte anclado en Stellar" : "Pasaporte en preparación"}
+          {lot.passportRoot
+            ? mode === "testnet" ? "Pasaporte anclado en Stellar" : "Pasaporte de ejemplo · Simulación"
+            : "Pasaporte en preparación"}
         </span>
         <div>Pasaporte de lote</div>
         <div className="mono" style={{ fontSize: "2rem", fontWeight: 600 }}>{lot.id}</div>
@@ -97,9 +98,8 @@ export default function PasaportePublico({ params }: { params: Promise<{ id: str
       </div>
       <section className="card">
         <h2 id="pruebas-lote" tabIndex={-1}>Pruebas del lote</h2>
-        <Row k="Libre de deforestación post-2020" v={parcels.length > 0 && parcels.every((p) => p.risk === "sin_riesgo") ? "Sí" : "Pendiente"} />
-        <Row k="Fuente satelital" v="Whisp (FAO)" />
-        <Row k="Organización verificada" v={lot.passportRoot ? "Sí" : "Pendiente"} />
+        <Row k="Evaluación satelital de parcelas incluidas" v={parcels.length > 0 ? "Riesgo bajo" : "Pendiente"} />
+        <Row k="Fuente satelital" v={mode === "testnet" ? "Whisp (FAO)" : "Resultado de ejemplo"} />
         <Row k="Ubicación exacta de parcelas" v="Solo para el comprador" />
         {lot.passportRoot && <div className="mono muted" style={{ fontSize: "0.75rem", wordBreak: "break-all" }}>Raíz {lot.passportRoot}</div>}
       </section>
@@ -110,8 +110,8 @@ export default function PasaportePublico({ params }: { params: Promise<{ id: str
           return <Row key={m} k={MILESTONE_LABEL[m]} v={a ? new Date(a.timestamp).toLocaleDateString("es-PE") : "Pendiente"} />;
         })}
       </section>
-      {MODE === "testnet" && lot.passportRoot && <OnChainPassport id={id} />}
-      <p className="muted" style={{ textAlign: "center", fontSize: "0.8rem", margin: 0 }}>{MODE === "testnet" ? "Stellar Testnet · parcelas y productores de ejemplo" : "Demo · datos de ejemplo"}</p>
+      {mode === "testnet" && lot.passportRoot && <OnChainPassport id={id} />}
+      <p className="muted" style={{ textAlign: "center", fontSize: "0.8rem", margin: 0 }}>{mode === "testnet" ? "Stellar Testnet · parcelas y productores de ejemplo" : "Simulación · datos de ejemplo"}</p>
     </main>
   );
 }

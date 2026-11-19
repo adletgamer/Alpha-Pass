@@ -41,9 +41,12 @@ export async function currentAddress(): Promise<string> {
 }
 
 /** Firma un XDR con la wallet conectada. Compatible con la firma que piden ACTA y Trustless Work. */
-export async function signXdr(unsignedXdr: string, opts?: { networkPassphrase?: string }): Promise<string> {
+export async function signXdr(unsignedXdr: string, opts?: { networkPassphrase?: string; expectedAddress?: string }): Promise<string> {
   const k = await kit();
   const address = await currentAddress();
+  if (opts?.expectedAddress && opts.expectedAddress !== address) {
+    throw new Error("Cambiaste de cuenta. Conecta la cuenta seleccionada antes de firmar.");
+  }
   const { signedTxXdr } = await k.signTransaction(unsignedXdr, {
     networkPassphrase: opts?.networkPassphrase ?? PASSPHRASE,
     address,

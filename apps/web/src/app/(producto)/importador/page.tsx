@@ -5,15 +5,33 @@ import Link from "next/link";
 import { eligibleParcels, useLot } from "@/lib/store";
 import { canRelease, milestoneAmount, releasedAmount, GATE_MESSAGE } from "@/lib/release-gate";
 import { MILESTONES, MILESTONE_LABEL, MILESTONE_SHARE, type AssetCode, type Milestone } from "@/lib/domain";
-import { ASSETS, MODE } from "@/lib/adapters";
+import { ASSETS } from "@/lib/adapters";
 import { DEMO_ESCROW_AMOUNT, TESTNET_ESCROW_AMOUNT } from "@/lib/sample-data";
 
 export default function ImportadorPage() {
-  const { lot, busy, fundEscrow, release } = useLot();
+  const { lot, mode, preview, busy, fundEscrow, release, attest } = useLot();
   const [asset, setAsset] = useState<AssetCode>("USDC");
-  const [amount, setAmount] = useState(MODE === "testnet" ? TESTNET_ESCROW_AMOUNT : DEMO_ESCROW_AMOUNT);
+  const [amount, setAmount] = useState(mode === "testnet" ? TESTNET_ESCROW_AMOUNT : DEMO_ESCROW_AMOUNT);
+  const [fundError, setFundError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Partial<Record<Milestone, string>>>({});
   const escrow = lot.escrow;
+  const parcels = eligibleParcels(lot);
+  const nextProof = MILESTONES.find((m) => !lot.attestations.some((a) => a.milestone === m));
+
+  async function fund() {
+    setFundError(null);
+    try {
+      await fundEscrow(asset, amount);
+    } catch (error) {
+      setFundError(error instanceof Error ? error.message : "No se pudo fondear el escrow.");
+    }
+  }
+
+  async function addSampleProof() {
+    if (!nextProof) return;
+    const error = await attest(nextProof, "Verificador de ejemplo", `${lot.id}:${nextProof}`);
+    setErrors((current) => ({ ...current, [nextProof]: error ?? undefined }));
+  }
 
   async function tryRelease(m: Milestone) {
     const err = await release(m);
@@ -46,11 +64,12 @@ export default function ImportadorPage() {
             <label>Monto
               <input className="input mono" type="number" min={1} value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
             </label>
-            <button className="btn" type="button" disabled={busy || amount <= 0 || !lot.passportRoot} onClick={() => fundEscrow(asset, amount)}>
+            <button className="btn" type="button" disabled={busy || amount <= 0 || !lot.passportRoot} onClick={fund}>
               Fondear {amount.toLocaleString("es-PE")} {asset}
             </button>
           </div>
           {!lot.passportRoot && <span className="error">La cooperativa todavía no ancló el pasaporte del lote.</span>}
+          {fundError && <span className="error" role="alert">{fundError}</span>}
         </section>
       )}
 
@@ -86,27 +105,34 @@ export default function ImportadorPage() {
             </div>
           );
         })}
-        <p className="muted" style={{ margin: 0, fontSize: "0.85rem" }}>
-          Prueba a liberar el embarque antes de que exista su credencial: Alpha Pass lo rechaza.
-        </p>
+        {preview && nextProof && escrow && (
+          <div>
+            <p className="muted">Intenta liberar el hito sin prueba. Después añade una prueba de ejemplo y vuelve a intentarlo.</p>
+            <button className="btn btn-ghost" type="button" disabled={busy} onClick={addSampleProof}>
+              Añadir prueba de ejemplo para {MILESTONE_LABEL[nextProof].toLowerCase()}
+            </button>
+          </div>
+        )}
       </section>
 
       <section className="card card-dark" aria-labelledby="dds">
-        <h2 id="dds">Paquete para la declaración EUDR</h2>
-        <p style={{ margin: 0 }}>GeoJSON de las parcelas aptas, resultados de verificación y credenciales del lote, listos para el sistema TRACES.</p>
+        <h2 id="dds">Exportar parcelas aptas</h2>
+        <p style={{ margin: 0 }}>{parcels.length
+          ? `El GeoJSON contiene ${parcels.length} ${parcels.length === 1 ? "parcela apta" : "parcelas aptas"}: geometría, superficie y resultado de riesgo.`
+          : "Verifica las parcelas en Cooperativa. Podrás descargar el GeoJSON cuando haya parcelas aptas."}</p>
         <div className="row" style={{ gap: 12 }}>
-          <a
+          {parcels.length > 0 && <a
             className="btn"
             style={{ background: "var(--ap-parchment)", color: "var(--ap-green-800)", borderColor: "var(--ap-parchment)" }}
             download={`${lot.id}-eudr.geojson`}
             href={`data:application/geo+json;charset=utf-8,${encodeURIComponent(JSON.stringify({
               type: "FeatureCollection",
-              features: eligibleParcels(lot).map((p) => ({ type: "Feature", properties: { id: p.id, producer: p.producer, hectares: p.hectares, risk: p.risk }, geometry: p.geometry })),
+              features: parcels.map((p) => ({ type: "Feature", properties: { id: p.id, producer: p.producer, hectares: p.hectares, risk: p.risk }, geometry: p.geometry })),
             }, null, 2))}`}
           >
-            Descargar GeoJSON
-          </a>
-          <Link className="btn btn-ghost" style={{ color: "var(--ap-parchment)", borderColor: "var(--ap-parchment)" }} href={`/lote/${lot.id}`}>Ver pasaporte público</Link>
+            Descargar parcelas en GeoJSON
+          </a>}
+          {!preview && <Link className="btn btn-ghost" style={{ color: "var(--ap-parchment)", borderColor: "var(--ap-parchment)" }} href={`/lote/${lot.id}`}>Ver pasaporte público</Link>}
         </div>
       </section>
     </main>

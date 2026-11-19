@@ -5,6 +5,7 @@ import type { HomeLocale } from "./home-copy";
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { MODE } from "@/lib/adapters";
 
 const LINKS = [
   { href: "#plataforma", label: "Plataforma" },
@@ -55,7 +56,7 @@ export function HomeNav({ locale }: { locale: HomeLocale }) {
             <Link href="/" hrefLang="es" lang="es" aria-label="Español" aria-current={locale === "es" ? "page" : undefined}>ES</Link>
             <Link href="/en" hrefLang="en" lang="en" aria-label="English" aria-current={locale === "en" ? "page" : undefined}>EN</Link>
           </nav>
-          <Link href="/cooperativa" className="btn">{locale === "en" ? "Explore demo" : "Explorar demo"}</Link>
+          <a href="#explorar" className="btn">{locale === "en" ? "Try without a wallet" : "Probar sin wallet"}</a>
           <button
             type="button"
             className="home-nav-toggle"
@@ -74,7 +75,8 @@ export function HomeNav({ locale }: { locale: HomeLocale }) {
         {links.map((l) => (
           <a key={l.href} href={l.href} onClick={() => setOpen(false)}>{l.label}</a>
         ))}
-        <Link href="/cooperativa" className="btn" onClick={() => setOpen(false)}>{locale === "en" ? "Explore demo" : "Explorar demo"}</Link>
+        <a href="#explorar" className="btn" onClick={() => setOpen(false)}>{locale === "en" ? "Try without a wallet" : "Probar sin wallet"}</a>
+        {MODE === "testnet" && <Link href="/probar" onClick={() => setOpen(false)}>{locale === "en" ? "Try on Testnet" : "Probar en Testnet"}</Link>}
       </nav>
     </header>
   );
