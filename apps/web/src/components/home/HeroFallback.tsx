@@ -22,6 +22,11 @@ export function HeroFallback() {
       <path d="M360 452 L392 446 L396 478 L364 486 Z" stroke="#B23A2E" strokeWidth="1.4" fill="#B23A2E" fillOpacity="0.08" />
       <path d="M476 428 C 540 330, 640 250, 780 150" fill="none" stroke="#1F4D3A" strokeWidth="3" strokeLinecap="round" />
       <circle cx="476" cy="428" r="7" fill="#B23A2E" />
+      <line x1="476" y1="428" x2="476" y2="414" stroke="#B23A2E" strokeWidth="1.4" />
+      <g transform="translate(476 396) rotate(-28)">
+        <ellipse rx="13" ry="19" fill="#93A784" stroke="#3F5E46" strokeWidth="1" />
+        <path d="M0 -16 C 5 -7, -5 7, 0 16" fill="none" stroke="#3F5E46" strokeWidth="2" strokeLinecap="round" />
+      </g>
       <circle cx="560" cy="318" r="9" fill="#B23A2E" />
       <circle cx="660" cy="234" r="9" fill="none" stroke="#1F4D3A" strokeWidth="2.5" />
       <circle cx="770" cy="158" r="9" fill="none" stroke="#1F4D3A" strokeWidth="2.5" />
