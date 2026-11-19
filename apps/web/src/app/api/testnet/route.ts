@@ -9,6 +9,7 @@ import {
   assertAddress,
   assertTestnet,
   buildGetUsdcTx,
+  buildUsdcTrustlineTx,
   fundWithFriendbot,
   registerTestVerifier,
   submitClassic,
@@ -44,6 +45,8 @@ export async function POST(request: Request) {
         return Response.json(await fundWithFriendbot(body.address));
       case "usdc":
         return Response.json({ unsignedXdr: await buildGetUsdcTx(body.address) });
+      case "trustline":
+        return Response.json({ unsignedXdr: await buildUsdcTrustlineTx(body.address) });
       case "verifier": {
         if (limited(request, "verifier", 10)) return Response.json({ code: "limit", message: "Demasiadas solicitudes. Espera unos minutos." }, { status: 429 });
         const status = await walletStatus(body.address);

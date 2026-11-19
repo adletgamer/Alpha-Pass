@@ -107,6 +107,16 @@ export async function buildGetUsdcTx(address: string): Promise<string> {
   return builder.setTimeout(180).build().toXDR();
 }
 
+/** Para la cuenta que cobra basta habilitar la recepción del activo. */
+export async function buildUsdcTrustlineTx(address: string): Promise<string> {
+  const acc = await horizon().loadAccount(address);
+  return new TransactionBuilder(acc, { fee: "10000", networkPassphrase: Networks.TESTNET })
+    .addOperation(Operation.changeTrust({ asset: usdc() }))
+    .setTimeout(180)
+    .build()
+    .toXDR();
+}
+
 /** Envía a Horizon una transacción clásica ya firmada por la wallet. */
 export async function submitClassic(signedXdr: string) {
   const tx = TransactionBuilder.fromXDR(signedXdr, Networks.TESTNET);

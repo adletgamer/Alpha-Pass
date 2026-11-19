@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import Image from "next/image";
+import { MODE } from "@/lib/adapters";
 import "@/app/home.css";
 import "@/app/home-editorial.css";
 import { homeCopy, type HomeLocale } from "./home-copy";
@@ -33,9 +34,11 @@ export function HomePage({ locale }: { locale: HomeLocale }) {
           </p>
           <div className="hero-ctas">
             <a href="#explorar-pasaporte" className="btn btn-lg">{copy.sample}</a>
-            <a href="#como-funciona" className="btn btn-ghost btn-lg">{copy.learn}</a>
+            {MODE === "testnet"
+              ? <Link href="/probar" className="btn btn-ghost btn-lg">{locale === "en" ? "Try with a Testnet wallet" : "Probar con wallet en Testnet"}</Link>
+              : <a href="#como-funciona" className="btn btn-ghost btn-lg">{copy.learn}</a>}
           </div>
-          <p className="demo-note mono">{copy.demoNote}</p>
+          <p className="demo-note mono">{locale === "en" ? "Sample data · Simulation and Stellar Testnet" : "Datos de ejemplo · Simulación y Stellar Testnet"}</p>
         </HeroScene>
 
         {/* 03 · Problema */}

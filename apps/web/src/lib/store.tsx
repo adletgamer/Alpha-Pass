@@ -6,7 +6,7 @@ import { MILESTONES } from "./domain";
 import { canRelease, GATE_MESSAGE, splitPremium } from "./release-gate";
 import { initialLot, newTestnetLotId, DEMO_PREMIUM } from "./sample-data";
 import { merkleRoot, sha256Hex } from "./merkle";
-import { demoProviders, providers as appProviders, MODE } from "./adapters";
+import { demoProviders, providers as appProviders, MODE, type AlphaMode } from "./adapters";
 
 type Action =
   | { type: "reset"; id?: string }
@@ -60,6 +60,8 @@ export function eligibleParcels(lot: Lot) {
 }
 
 interface Ctx {
+  mode: AlphaMode;
+  preview: boolean;
   lot: Lot;
   busy: boolean;
   log: string[];
@@ -124,6 +126,8 @@ export function LotProvider({ children, initial, preview = false }: LotProviderP
   }, []);
 
   const value = useMemo<Ctx>(() => ({
+    mode: preview ? "demo" : MODE,
+    preview,
     lot,
     busy,
     log,

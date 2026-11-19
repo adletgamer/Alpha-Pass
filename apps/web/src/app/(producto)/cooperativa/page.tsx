@@ -10,7 +10,7 @@ const RISK_LABEL = { sin_riesgo: "Sin riesgo", alerta: "Alerta: revisar", pendie
 const RISK_CLASS = { sin_riesgo: "pill pill-ok", alerta: "pill pill-alert", pendiente: "pill pill-wait" } as const;
 
 export default function CooperativaPage() {
-  const { lot, busy, log, verifyParcels, anchorPassport, distributePremium, reset } = useLot();
+  const { lot, mode, busy, log, verifyParcels, anchorPassport, distributePremium, reset } = useLot();
   const [shares, setShares] = useState<number[] | null>(null);
   const eligible = eligibleParcels(lot);
   const verified = lot.parcels.every((p) => p.risk !== "pendiente");
@@ -67,7 +67,7 @@ export default function CooperativaPage() {
             <h2 id="pasaporte">2. Pasaporte</h2>
             {lot.passportRoot ? (
               <>
-                <span className="pill pill-ok">Anclado en LotPassport</span>
+                <span className="pill pill-ok">{mode === "testnet" ? "Anclado en LotPassport" : "Pasaporte de ejemplo"}</span>
                 <div className="mono muted" style={{ wordBreak: "break-all", fontSize: "0.8rem" }}>Raíz {lot.passportRoot}</div>
               </>
             ) : (

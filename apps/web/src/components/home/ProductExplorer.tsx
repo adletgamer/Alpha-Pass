@@ -7,6 +7,7 @@ import Link from "next/link";
 import { LotProvider } from "@/lib/store";
 import { exampleLot } from "@/lib/example-lot";
 import { MILESTONE_SHARE } from "@/lib/domain";
+import { MODE } from "@/lib/adapters";
 import CooperativaPage from "@/app/(producto)/cooperativa/page";
 import ImportadorPage from "@/app/(producto)/importador/page";
 import PasaportePublico from "@/app/(producto)/lote/[id]/page";
@@ -28,7 +29,7 @@ const VIEWS = [
     headline: "Evidencia antes de cada pago",
     href: "/importador",
     focus: "Escrow, hitos de pago, credenciales exigidas y paquete de evidencias.",
-    metrics: ["16,500 USDC", "03 hitos", "30% liberado"],
+    metrics: ["16,500 USDC", "03 hitos", "30% acopio"],
   },
   {
     key: "pasaporte",
@@ -58,7 +59,7 @@ const VIEWS_EN = [
     headline: "Evidence before each payment",
     href: "/importador",
     focus: "Escrow, payment milestones, required credentials and evidence package.",
-    metrics: ["16,500 USDC", "03 milestones", "30% released"],
+    metrics: ["16,500 USDC", "03 milestones", "30% collection"],
   },
   {
     key: "pasaporte",
@@ -84,8 +85,8 @@ const DETAIL = {
   importador: {
     target: "hitos",
     value: `${MILESTONE_SHARE.embarque}%`,
-    label: ["Embarque retenido", "Shipment payment held"],
-    note: ["El hito de embarque sigue pendiente de una credencial firmada.", "The shipment milestone still needs a signed credential."],
+    label: ["Pago de embarque", "Shipment payment"],
+    note: ["El pago de embarque requiere una credencial del verificador.", "Shipment payment requires a credential from the verifier."],
   },
   pasaporte: {
     target: "pruebas-lote",
@@ -101,6 +102,10 @@ const DETAIL = {
  * servicios simulados, sin persistencia y sin firmar transacciones.
  */
 export function ProductExplorer({ locale }: { locale: HomeLocale }) {
+  return <LotProvider preview initial={sample}><ExplorerViews locale={locale} /></LotProvider>;
+}
+
+function ExplorerViews({ locale }: { locale: HomeLocale }) {
   const views = locale === "en" ? VIEWS_EN : VIEWS;
   const [view, setView] = useState<ViewKey>("cooperativa");
   const previewRef = useRef<HTMLDivElement>(null);
@@ -191,20 +196,24 @@ export function ProductExplorer({ locale }: { locale: HomeLocale }) {
             <div className="explorer-chrome">
               <span className="explorer-dots" aria-hidden="true"><i /><i /><i /></span>
               <span className="mono explorer-url">alpha-pass{current.href}</span>
-              <span className="explorer-badge"><span aria-hidden="true" />{locale === "en" ? "STELLAR TESTNET / SAMPLE DATA" : "STELLAR TESTNET / DATOS DE EJEMPLO"}</span>
+              <span className="explorer-badge"><span aria-hidden="true" />{locale === "en" ? "SIMULATION / SAMPLE DATA" : "SIMULACIÓN / DATOS DE EJEMPLO"}</span>
             </div>
             <div className="explorer-body" lang="es" key={view} ref={previewRef}>
-              <LotProvider preview initial={exampleLot()}>
-                {view === "cooperativa" && <CooperativaPage />}
-                {view === "importador" && <ImportadorPage />}
-                {view === "pasaporte" && <PasaportePublico params={lotParams} />}
-              </LotProvider>
+              {view === "cooperativa" && <CooperativaPage />}
+              {view === "importador" && <ImportadorPage />}
+              {view === "pasaporte" && <PasaportePublico params={lotParams} />}
             </div>
           </div>
         </div>
         <div className="explorer-foot">
           <span>{locale === "en" ? "Interactive simulation. No transactions are signed here." : "Vista previa interactiva y simulada: aquí no se firman transacciones."}</span>
-          <Link href={current.href} className="explorer-open">{locale === "en" ? "Open in prototype (Spanish)" : `Abrir ${current.label.toLowerCase()} en el prototipo`} <span aria-hidden="true">↗</span></Link>
+          {MODE === "testnet" && (
+            <Link href={view === "pasaporte" ? "/lote/2026-JAE-014-E2E6TU" : "/probar"} className="explorer-open">
+              {view === "pasaporte"
+                ? (locale === "en" ? "See the lot anchored on Testnet" : "Ver lote anclado en Testnet")
+                : (locale === "en" ? "Try with a Testnet wallet" : "Probar con wallet en Testnet")} <span aria-hidden="true">↗</span>
+            </Link>
+          )}
         </div>
       </div>
     </div>
