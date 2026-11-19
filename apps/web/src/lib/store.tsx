@@ -5,7 +5,7 @@ import type { AssetCode, Lot, Milestone } from "./domain";
 import { MILESTONES } from "./domain";
 import { canRelease, GATE_MESSAGE, splitPremium } from "./release-gate";
 import { initialLot, newTestnetLotId, DEMO_PREMIUM } from "./sample-data";
-import { merkleRoot, sha256Hex } from "./merkle";
+import { passportRoot, sha256Hex } from "./merkle";
 import { api, demoProviders, providers as appProviders, MODE, type AlphaMode } from "./adapters";
 import { useSharedOperation } from "./operation-client";
 import { resumeEscrow } from "./escrow-recovery";
@@ -186,13 +186,7 @@ export function LotProvider({ children, initial, preview = false }: LotProviderP
     anchorPassport: () => run(async () => {
       requireRole("cooperativa");
       const parcels = eligibleParcels(lot);
-      const credentials = [
-        { kind: "organizacion", cooperative: lot.cooperative },
-        ...parcels.map((p) => ({ kind: "parcela", id: p.id, producer: p.producer, geometry: p.geometry })),
-        ...parcels.map((p) => ({ kind: "deforestacion", id: p.id, result: p.risk, source: "whisp" })),
-        { kind: "composicion", lot: lot.id, parcels: parcels.map((p) => [p.id, p.bags]) },
-      ];
-      const root = await merkleRoot(credentials);
+      const root = await passportRoot(lot, parcels);
       if (shared.view) {
         const current = await shared.refresh();
         if (!current || current.lot.passportRoot) return;

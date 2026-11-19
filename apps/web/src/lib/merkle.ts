@@ -1,6 +1,16 @@
 // Raíz Merkle SHA-256 de las credenciales del pasaporte.
 // Cada hoja es el hash del JSON canónico de una credencial; solo la raíz va a
 // LotPassport en Stellar. Las credenciales completas quedan fuera de la cadena.
+import type { Lot, Parcel } from "./domain";
+
+export function passportRoot(lot: Lot, parcels: Parcel[]) {
+  return merkleRoot([
+    { kind: "organizacion", cooperative: lot.cooperative },
+    ...parcels.map((p) => ({ kind: "parcela", id: p.id, producer: p.producer, geometry: p.geometry })),
+    ...parcels.map((p) => ({ kind: "deforestacion", id: p.id, result: p.risk, source: "whisp" })),
+    { kind: "composicion", lot: lot.id, parcels: parcels.map((p) => [p.id, p.bags]) },
+  ]);
+}
 
 export async function sha256Hex(data: string | Uint8Array): Promise<string> {
   const bytes = typeof data === "string" ? new TextEncoder().encode(data) : data;
