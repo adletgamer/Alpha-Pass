@@ -24,7 +24,8 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         type: "FeatureCollection",
         features: parcels.map((p) => ({ type: "Feature", properties: { alphaId: p.id }, geometry: p.geometry })),
-        analysisOptions: { async: true, unitType: "ha" },
+        // Whisp descarta las propiedades propias; externalIdColumn devuelve el ID como external_id.
+        analysisOptions: { async: true, unitType: "ha", externalIdColumn: "alphaId" },
       }),
     });
     let payload = await submit.json();
