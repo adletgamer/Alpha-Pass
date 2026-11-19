@@ -19,7 +19,7 @@ export const serverEnv = {
   rpcUrl: process.env.NEXT_PUBLIC_SOROBAN_RPC_URL ?? "https://soroban-testnet.stellar.org",
   lotPassportId: () => req("NEXT_PUBLIC_LOT_PASSPORT_CONTRACT_ID"),
   trustlessWork: () => ({
-    url: process.env.TRUSTLESS_WORK_API_URL?.trim() || "https://beta.api.trustlesswork.com",
+    url: process.env.TRUSTLESS_WORK_API_URL?.trim() || "https://dev.api.trustlesswork.com",
     key: req("TRUSTLESS_WORK_API_KEY"),
   }),
   acta: () => ({
