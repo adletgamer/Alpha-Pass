@@ -9,12 +9,15 @@ import { ASSETS } from "@/lib/adapters";
 import { DEMO_ESCROW_AMOUNT, TESTNET_ESCROW_AMOUNT } from "@/lib/sample-data";
 
 export default function ImportadorPage() {
-  const { lot, mode, preview, busy, fundEscrow, release, attest } = useLot();
+  const { lot, mode, preview, busy, operation, fundEscrow, release, attest } = useLot();
   const [asset, setAsset] = useState<AssetCode>("USDC");
   const [amount, setAmount] = useState(mode === "testnet" ? TESTNET_ESCROW_AMOUNT : DEMO_ESCROW_AMOUNT);
   const [fundError, setFundError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Partial<Record<Milestone, string>>>({});
   const escrow = lot.escrow;
+  const savedEscrow = operation.view?.progress.escrow;
+  const canEdit = !operation.active || operation.view?.role === "importador";
+  const pending = operation.view?.pendingDeploy || operation.view?.pendingFund;
   const parcels = eligibleParcels(lot);
   const nextProof = MILESTONES.find((m) => !lot.attestations.some((a) => a.milestone === m));
 
@@ -34,7 +37,7 @@ export default function ImportadorPage() {
   }
 
   async function tryRelease(m: Milestone) {
-    const err = await release(m);
+    const err = await release(m).catch((failure: Error) => failure.message);
     setErrors((e) => ({ ...e, [m]: err ?? undefined }));
   }
 
@@ -51,24 +54,25 @@ export default function ImportadorPage() {
         <div className="card"><span className="muted">Pasaporte</span><span className="stat-value">{lot.passportRoot ? `${eligibleParcels(lot).length} parcelas` : "Sin anclar"}</span></div>
       </div>
 
-      {!escrow && (
+      {!escrow?.funded && (
         <section className="card" aria-labelledby="fondear">
           <h2 id="fondear">Fondear el escrow</h2>
           <p className="muted" style={{ margin: 0 }}>Elige la moneda del contrato. El escrow (Trustless Work) acepta USDC o EURC.</p>
           <div className="row" style={{ alignItems: "flex-end", gap: 16 }}>
             <label>Moneda
-              <select value={asset} onChange={(e) => setAsset(e.target.value as AssetCode)}>
+              <select value={savedEscrow?.asset ?? asset} disabled={Boolean(savedEscrow)} onChange={(e) => setAsset(e.target.value as AssetCode)}>
                 {Object.values(ASSETS).map((a) => <option key={a.code} value={a.code}>{a.label}</option>)}
               </select>
             </label>
             <label>Monto
-              <input className="input mono" type="number" min={1} value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
+              <input className="input mono" type="number" min={1} value={savedEscrow?.amount ?? amount} disabled={Boolean(savedEscrow)} onChange={(e) => setAmount(Number(e.target.value))} />
             </label>
-            <button className="btn" type="button" disabled={busy || amount <= 0 || !lot.passportRoot} onClick={fund}>
-              Fondear {amount.toLocaleString("es-PE")} {asset}
+            <button className="btn" type="button" disabled={busy || amount <= 0 || !lot.passportRoot || !canEdit || Boolean(pending)} onClick={fund}>
+              {escrow ? "Continuar fondeo" : `Fondear ${(savedEscrow?.amount ?? amount).toLocaleString("es-PE")} ${savedEscrow?.asset ?? asset}`}
             </button>
           </div>
           {!lot.passportRoot && <span className="error">La cooperativa todavía no ancló el pasaporte del lote.</span>}
+          {pending && <p role="status">Hay una transacción pendiente de confirmación. Usa «Actualizar estado» en la guía de Testnet.</p>}
           {fundError && <span className="error" role="alert">{fundError}</span>}
         </section>
       )}
@@ -95,7 +99,7 @@ export default function ImportadorPage() {
                 <button
                   type="button"
                   className="btn"
-                  disabled={busy || !escrow}
+                  disabled={busy || !escrow?.funded || !canEdit}
                   onClick={() => tryRelease(m)}
                   title={gate.ok ? "" : GATE_MESSAGE[gate.reason]}
                 >

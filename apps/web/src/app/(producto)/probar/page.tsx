@@ -7,6 +7,7 @@ import { useLot } from "@/lib/store";
 import { MILESTONE_LABEL, type Milestone } from "@/lib/domain";
 import { TESTNET_ESCROW_AMOUNT } from "@/lib/sample-data";
 import { callTestnet, useTestnetWallet } from "@/components/TestnetWallet";
+import { OperationPanel } from "@/components/OperationPanel";
 
 const ROLES = {
   cooperativa: { label: "Cooperativa · cuenta A", href: "/cooperativa", next: "Verificar las parcelas y anclar el pasaporte." },
@@ -151,6 +152,7 @@ export default function ProbarPage() {
         {roleReady && <p><strong>Cuenta preparada.</strong> {ROLES[role].next} <Link href={ROLES[role].href}>Continuar como {role}</Link></p>}
       </section>
 
+      <OperationPanel />
       <section className="card" aria-labelledby="recorrido">
         <h2 id="recorrido">Recorrido del lote {lot.id}</h2>
         <ol style={{ margin: 0, paddingLeft: 20, display: "grid", gap: 8 }}>

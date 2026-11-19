@@ -92,7 +92,7 @@ export async function readLotOnChain(lotId: string): Promise<OnChainLot | null> 
   }
   const attestations: OnChainLot["attestations"] = [];
   for (const m of Object.keys(MILESTONE_VARIANT) as Milestone[]) {
-    const a = (await readContract("get_attestation", id, milestoneScVal(m)).catch(() => null)) as Record<string, unknown> | null;
+    const a = (await readContract("get_attestation", id, milestoneScVal(m))) as Record<string, unknown> | null;
     if (a) attestations.push({ milestone: m, issuer: String(a.issuer), evidenceHash: hex(a.evidence_hash), timestamp: Number(a.timestamp) });
   }
   return {
@@ -115,4 +115,21 @@ export async function escrowEngagementId(contractId: string): Promise<string | n
   const escrow = (await readAt(contractId, "get_escrow").catch(() => null)) as Record<string, unknown> | null;
   const value = escrow?.engagement_id ?? escrow?.engagementId;
   return typeof value === "string" ? value : null;
+}
+
+export async function readEscrowMilestones(contractId: string, lotId: string) {
+  const escrow = await readAt(contractId, "get_escrow") as Record<string, unknown>;
+  if ((escrow.engagement_id ?? escrow.engagementId) !== lotId || !Array.isArray(escrow.milestones) ||
+    escrow.milestones.length !== 3) throw new Error("El escrow no corresponde al lote.");
+  return escrow.milestones.map(({ flags, approve }) => {
+    const approved = flags?.approved ?? flags?.approve ?? approve;
+    if (typeof flags?.released !== "boolean" || typeof approved !== "boolean") {
+      throw new Error("No se pudieron comprobar los estados del escrow.");
+    }
+    return { released: flags.released as boolean, approved };
+  });
+}
+
+export async function readTransaction(hash: string) {
+  return new rpc.Server(serverEnv.rpcUrl).getTransaction(hash);
 }
