@@ -36,3 +36,32 @@ Las identidades de prueba se guardaron localmente bajo `contracts/.stellar/` (ig
 2. El importador pulsa "Liberar hito".
 3. `/api/escrow/release` simula `is_attested`; si es `false`, responde 409 y no toca el escrow.
 4. Si es `true`, pide a Trustless Work la aprobación y la liberación, las firma con la cuenta aprobadora y las envía.
+
+## Probar en Testnet con cualquier wallet
+
+La página `/probar` deja lista una wallet de Stellar en Testnet (Freighter, xBull, Lobstr, Albedo…):
+
+1. **XLM:** friendbot crea la cuenta (`/api/testnet`, acción `fund`).
+2. **USDC de prueba:** la wallet firma una transacción que abre la trustline de USDC de Circle (Testnet) y compra 200 USDC con su propio XLM en el DEX de Testnet (`pathPaymentStrictReceive`). Alpha Pass no custodia ni envía fondos.
+3. **Verificador (opcional):** la cuenta administradora de LotPassport (`ALPHA_ADMIN_SECRET`) firma `set_issuer` para los tres hitos. Solo en Testnet y con límite por IP.
+
+El escrow no deja que la misma wallet pague y cobre: hacen falta dos cuentas (cooperativa e importador). Ambas necesitan trustline de USDC; la cooperativa, para cobrar.
+
+En Testnet cada lote recibe un ID único (`2026-JAE-014-XXXX`), porque LotPassport no admite IDs repetidos, y el escrow es de 150 USDC (45 · 75 · 30).
+
+## Trustless Work: v1 o v2
+
+La clave de API de Testnet del dApp de Trustless Work funciona en `https://dev.api.trustlesswork.com` (v1); `beta.api` (v2) la rechaza con `AUTH_INVALID_CREDENTIAL`. El cliente (`lib/server/trustless-work.ts`) deduce la versión de la URL. Todas las wallets de rol (aprobadora, plataforma, resolutora, administradora y receptora) necesitan trustline del activo; las cuatro cuentas de servicio ya la tienen en Testnet. Trustless Work cobra su comisión de protocolo al liberar: en la prueba, de 150 USDC llegaron 149,55 a la cooperativa.
+
+## Prueba de punta a punta
+
+`node apps/web/scripts/e2e-testnet.mjs http://localhost:3000` crea tres cuentas nuevas y recorre todo el flujo contra la app. Resultado del 18-nov-2026 (lote `2026-JAE-014-E2E6TU`): 20/20 pasos correctos.
+
+- Whisp devolvió el riesgo por parcela (ID propio vía `externalIdColumn`).
+- `create_lot` firmado por la cooperativa.
+- Escrow `CBTSQJPCHK62B7YUHWIBFSZEFSQ3IW6X2B54JVFSTED2HHGCL5THG2IN` desplegado y fondeado por el importador.
+- Liberar sin credencial y liberar con el escrow de otro lote respondieron 409.
+- Tres atestaciones y tres liberaciones; la cooperativa recibió 149,55 USDC.
+- `/api/lote/[id]` leyó el lote y sus 3 hitos desde la cadena.
+
+La emisión de la credencial en ACTA ocurre en el navegador con la wallet; el script no la cubre.
