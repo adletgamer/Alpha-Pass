@@ -15,10 +15,10 @@ import {
   walletStatus,
 } from "@/lib/server/testnet";
 
-// Límite simple por IP para no gastar las comisiones de la cuenta administradora.
+// Límite simple por IP y acción (una red de evento puede compartir IP) para no gastar las comisiones de la cuenta administradora.
 const hits = new Map<string, number[]>();
-function limited(request: Request, max: number) {
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
+function limited(request: Request, bucket: string, max: number) {
+  const ip = `${bucket}:${request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local"}`;
   const now = Date.now();
   const recent = (hits.get(ip) ?? []).filter((t) => now - t < 10 * 60_000);
   recent.push(now);
@@ -40,12 +40,12 @@ export async function POST(request: Request) {
       case "status":
         return Response.json(await walletStatus(body.address));
       case "fund":
-        if (limited(request, 10)) return Response.json({ code: "limit", message: "Demasiadas solicitudes. Espera unos minutos." }, { status: 429 });
+        if (limited(request, "fund", 30)) return Response.json({ code: "limit", message: "Demasiadas solicitudes. Espera unos minutos." }, { status: 429 });
         return Response.json(await fundWithFriendbot(body.address));
       case "usdc":
         return Response.json({ unsignedXdr: await buildGetUsdcTx(body.address) });
       case "verifier": {
-        if (limited(request, 4)) return Response.json({ code: "limit", message: "Demasiadas solicitudes. Espera unos minutos." }, { status: 429 });
+        if (limited(request, "verifier", 10)) return Response.json({ code: "limit", message: "Demasiadas solicitudes. Espera unos minutos." }, { status: 429 });
         const status = await walletStatus(body.address);
         if (!status.exists) throw new Error("La cuenta todavía no existe en Testnet: pide XLM primero.");
         return Response.json(await registerTestVerifier(body.address));
