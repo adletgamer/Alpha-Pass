@@ -4,12 +4,12 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useReducer,
 import type { AssetCode, Lot, Milestone } from "./domain";
 import { MILESTONES } from "./domain";
 import { canRelease, GATE_MESSAGE, splitPremium } from "./release-gate";
-import { initialLot, DEMO_PREMIUM } from "./sample-data";
+import { initialLot, newTestnetLotId, DEMO_PREMIUM } from "./sample-data";
 import { merkleRoot, sha256Hex } from "./merkle";
-import { demoProviders, providers as appProviders } from "./adapters";
+import { demoProviders, providers as appProviders, MODE } from "./adapters";
 
 type Action =
-  | { type: "reset" }
+  | { type: "reset"; id?: string }
   | { type: "load"; lot: Lot }
   | { type: "risk"; risks: Record<string, "sin_riesgo" | "alerta"> }
   | { type: "anchor"; root: string }
@@ -21,7 +21,7 @@ type Action =
 function reducer(lot: Lot, a: Action): Lot {
   switch (a.type) {
     case "reset":
-      return initialLot();
+      return initialLot(a.id);
     case "load":
       return a.lot;
     case "risk":
@@ -95,6 +95,8 @@ export function LotProvider({ children, initial, preview = false }: LotProviderP
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) dispatch({ type: "load", lot: JSON.parse(saved) });
+      // En Testnet, un lote nuevo necesita un ID que no exista todavía en LotPassport.
+      else if (MODE === "testnet") dispatch({ type: "reset", id: newTestnetLotId() });
     } catch {
       /* estado nuevo si no hay almacenamiento */
     }
@@ -190,10 +192,10 @@ export function LotProvider({ children, initial, preview = false }: LotProviderP
       return shares;
     },
     reset: () => {
-      dispatch(initial ? { type: "load", lot: initial } : { type: "reset" });
+      dispatch(initial ? { type: "load", lot: initial } : { type: "reset", id: !preview && MODE === "testnet" ? newTestnetLotId() : undefined });
       setLog([]);
     },
-  }), [lot, busy, log, run, note, providers, initial]);
+  }), [lot, busy, log, run, note, providers, initial, preview]);
 
   return <LotContext.Provider value={value}>{children}</LotContext.Provider>;
 }

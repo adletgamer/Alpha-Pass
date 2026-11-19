@@ -3,7 +3,7 @@
 // Alpha Pass firma en el servidor; su secreto nunca sale de aquí.
 import { assertSameOrigin, errorResponse, serverEnv } from "@/lib/server/env";
 import { TW, TrustlessWorkError } from "@/lib/server/trustless-work";
-import { isAttestedOnChain, signWithApprover } from "@/lib/server/stellar";
+import { escrowEngagementId, isAttestedOnChain, signWithApprover } from "@/lib/server/stellar";
 import { MILESTONES, type Milestone } from "@/lib/domain";
 
 export async function POST(request: Request) {
@@ -15,6 +15,14 @@ export async function POST(request: Request) {
     const index = MILESTONES.indexOf(milestone);
     if (index < 0 || !contractId || !lotId) {
       return Response.json({ code: "invalid", message: "Faltan datos del hito" }, { status: 400 });
+    }
+    // El escrow debe pertenecer a este lote: sin esto, un lote atestado podría
+    // liberar el escrow de otro lote (la cuenta aprobadora es la misma para todos).
+    if ((await escrowEngagementId(contractId)) !== lotId) {
+      return Response.json(
+        { code: "escrow_ajeno", message: "Ese escrow no corresponde a este lote: no se libera." },
+        { status: 409 },
+      );
     }
     if (!(await isAttestedOnChain(lotId, milestone))) {
       return Response.json(
