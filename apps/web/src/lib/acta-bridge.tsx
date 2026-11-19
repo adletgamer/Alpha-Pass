@@ -17,8 +17,9 @@ export interface PassportCredentialInput {
 }
 
 type Bridge = {
-  issuePassport(input: PassportCredentialInput): Promise<{ txId: string; issuerDid: string; vcId: string }>;
+  issuePassport(input: PassportCredentialInput, expectedOwner?: string): Promise<{ txId: string; issuerDid: string; vcId: string }>;
   verifyPassport(owner: string, vcId: string): Promise<unknown>;
+  recoverPassport(owner: string, lotId: string, root: string): Promise<string | null>;
 };
 
 let bridge: Bridge | null = null;
@@ -28,18 +29,18 @@ export function getActaBridge(): Bridge {
   return bridge;
 }
 
-const signer = (xdr: string, opts: { networkPassphrase: string }) => signXdr(xdr, opts);
-
 function Register() {
   const client = useActaClient();
   const { createVault } = useVault();
   const { issue } = useCredential();
-  const { verifyVc } = useVaultRead();
+  const { verifyVc, getVc } = useVaultRead();
 
   useEffect(() => {
     bridge = {
-      async issuePassport(input) {
+      async issuePassport(input, expectedOwner) {
         const owner = await currentAddress();
+        if (expectedOwner && owner !== expectedOwner) throw new Error("Conecta la cuenta de la cooperativa que abrió el lote.");
+        const signer = (xdr: string, opts: { networkPassphrase: string }) => signXdr(xdr, { ...opts, expectedAddress: owner });
         const identity = await client.getOrCreateIssuerIdentity({ controller: owner, signTransaction: signer });
         try {
           await createVault({ owner, ownerDid: identity.did, signTransaction: signer });
@@ -69,11 +70,20 @@ function Register() {
         return { txId, issuerDid: identity.did, vcId };
       },
       verifyPassport: (owner, vcId) => verifyVc({ owner, vcId }),
+      async recoverPassport(owner, lotId, root) {
+        const vcId = `alpha-pass-${lotId}`;
+        if ((await verifyVc({ owner, vcId })).status !== "valid") return null;
+        const value = await getVc({ owner, vcId });
+        const credential = (typeof value === "string" ? JSON.parse(value) : value) as
+          { credentialSubject?: { id?: string; passportRoot?: string } } | null;
+        return credential?.credentialSubject?.id === `urn:alpha-pass:lot:${lotId}` &&
+          credential.credentialSubject.passportRoot === root ? vcId : null;
+      },
     };
     return () => {
       bridge = null;
     };
-  }, [client, createVault, issue, verifyVc]);
+  }, [client, createVault, issue, verifyVc, getVc]);
 
   return null;
 }

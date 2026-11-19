@@ -65,3 +65,13 @@ La clave de API de Testnet del dApp de Trustless Work funciona en `https://dev.a
 - `/api/lote/[id]` leyó el lote y sus 3 hitos desde la cadena.
 
 La emisión de la credencial en ACTA ocurre en el navegador con la wallet; el script no la cubre.
+
+## Operación compartida en Testnet
+
+1. Prepara un PostgreSQL de prueba, preferiblemente una rama aislada de Neon. En `apps/web`, configura `DATABASE_URL` en el servidor y `DATABASE_URL_UNPOOLED` para la migración si dispones de ambas conexiones. Ejecuta `npm run db:migrate`. Las operaciones de Testnet existentes en un navegador siguen siendo locales. Para usar los enlaces, abre un lote nuevo desde `/probar` antes de anclarlo.
+2. Conecta la cuenta de cooperativa. Pulsa **Abrir operación compartida** y guarda el enlace de cooperativa. Copia el enlace de importador y el del verificador para sus respectivos perfiles. El código de cada enlace se guarda como hash en el servidor y se retira de la barra de direcciones al abrirlo.
+3. Verifica las parcelas en Cooperativa. Firma la emisión ACTA y el anclaje. Si cancelas el anclaje después de guardar la credencial, el botón **Continuar anclaje del pasaporte** reutiliza la credencial guardada. Si una transacción quedó pendiente, actualiza el lote antes de continuar.
+4. Desde el otro perfil, conecta la cuenta compradora y abre el enlace de importador. Crea el escrow y cancela la firma del depósito. Tras recargar, pulsa **Continuar fondeo**. Debe conservarse el mismo contrato. Revisa los hashes bajo **Referencias de transacciones** en la guía.
+5. Antes de firmar una atestación, comprueba que el hito esté retenido. Abre el enlace de verificador y firma acopio. En Importador, actualiza y libera ese hito. Ambos perfiles deben mostrar el mismo lote y progreso. Repite para embarque y llegada. Comprueba también el pasaporte público desde un perfil sin el enlace privado.
+
+Las pruebas locales cubren la migración sobre PostgreSQL embebido, la lectura con distintos enlaces de rol y bloqueos ante firmas canceladas o transacciones pendientes. La guía anterior cubre el recorrido con dos wallets y ACTA en un despliegue de Testnet con sus proveedores configurados.

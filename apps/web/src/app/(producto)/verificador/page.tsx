@@ -19,13 +19,14 @@ const EVIDENCE_HINT: Record<Milestone, string> = {
 };
 
 export default function VerificadorPage() {
-  const { lot, mode, busy, attest } = useLot();
+  const { lot, mode, busy, operation, attest } = useLot();
   const wallet = useTestnetWallet();
   const next = MILESTONES.find((m) => !lot.attestations.some((a) => a.milestone === m));
   const [evidence, setEvidence] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
-  const allowed = mode === "demo" || Boolean(next && wallet.status?.verifierFor.includes(next));
+  const correctRole = !operation.active || operation.view?.role === "verificador";
+  const allowed = correctRole && (mode === "demo" || Boolean(next && wallet.status?.verifierFor.includes(next)));
 
   async function sign(m: Milestone) {
     setError(null);
@@ -60,7 +61,7 @@ export default function VerificadorPage() {
         <h2 id="firmar">Firmar el siguiente hito</h2>
         {mode === "testnet" && next && !allowed && (
           <p className="muted" style={{ margin: 0 }}>
-            {wallet.reading ? "Consultando permisos de la wallet…" :
+            {!correctRole ? "Abre el enlace del verificador para este lote." : wallet.reading ? "Consultando permisos de la wallet…" :
               wallet.address ? "El permiso para este hito aún no está confirmado." : "Conecta una wallet registrada como verificador de prueba."}{" "}
             <Link href="/probar">Preparar la cuenta en Testnet</Link>
           </p>

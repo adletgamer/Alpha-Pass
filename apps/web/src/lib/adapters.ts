@@ -14,11 +14,11 @@ export interface Providers {
   deforestation: { assess(parcels: Parcel[]): Promise<Record<string, "sin_riesgo" | "alerta">> };
   passport: {
     anchor(lot: Lot, root: string, eligible: Parcel[]): Promise<{ note: string }>;
-    attest(lotId: string, milestone: Milestone, evidenceHashHex: string): Promise<{ note: string }>;
+    attest(lotId: string, milestone: Milestone, evidenceHashHex: string): Promise<{ note: string; txHash?: string }>;
   };
   escrow: {
     createAndFund(input: { lotId: string; asset: AssetCode; amount: number }): Promise<{ contractId: string }>;
-    release(input: { contractId: string; lotId: string; milestone: Milestone }): Promise<{ note: string }>;
+    release(input: { contractId: string; lotId: string; milestone: Milestone; access?: string }): Promise<{ note: string }>;
   };
 }
 
@@ -53,8 +53,10 @@ export const demoProviders: Providers = {
   },
 };
 
-async function api<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+export async function api<T>(path: string, body: unknown, access?: string): Promise<T> {
+  const headers = new Headers({ "Content-Type": "application/json" });
+  if (access) headers.set("x-operation-access", access);
+  const res = await fetch(path, { method: "POST", headers, body: JSON.stringify(body) });
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.message ?? json.detail ?? json.title ?? `Error ${res.status} en ${path}`);
   return json as T;
@@ -87,7 +89,7 @@ const testnetProviders: Providers = {
     async attest(lotId, milestone, evidenceHashHex) {
       const { attestOnChain } = await import("./lot-passport-client");
       const tx = await attestOnChain(lotId, milestone, evidenceHashHex);
-      return { note: `LotPassport tx ${tx.slice(0, 10)}…` };
+      return { note: `LotPassport tx ${tx.slice(0, 10)}…`, txHash: tx };
     },
   },
   escrow: {
@@ -106,9 +108,9 @@ const testnetProviders: Providers = {
       await api("/api/escrow", { action: "submit", signedXdr: await signXdr(fund.unsignedXdr) });
       return { contractId };
     },
-    async release(input) {
-      const r = await api<{ releaseTx: string }>("/api/escrow/release", input);
-      return { note: `liberación tx ${r.releaseTx.slice(0, 10)}…` };
+    async release({ access, ...input }) {
+      const r = await api<{ releaseTx: string | null }>("/api/escrow/release", input, access);
+      return { note: r.releaseTx ? `liberación tx ${r.releaseTx.slice(0, 10)}…` : "liberación confirmada en Stellar" };
     },
   },
 };
