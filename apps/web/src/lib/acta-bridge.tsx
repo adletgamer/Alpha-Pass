@@ -23,6 +23,7 @@ type Bridge = {
 };
 
 let bridge: Bridge | null = null;
+const issuerAddress = process.env.NEXT_PUBLIC_ACTA_ISSUER_ADDRESS?.trim();
 
 export function getActaBridge(): Bridge {
   if (!bridge) throw new Error("ACTA no está listo todavía. Recarga la página.");
@@ -40,6 +41,9 @@ function Register() {
       async issuePassport(input, expectedOwner) {
         const owner = await currentAddress();
         if (expectedOwner && owner !== expectedOwner) throw new Error("Conecta la cuenta de la cooperativa que abrió el lote.");
+        if (issuerAddress && owner !== issuerAddress) {
+          throw new Error("Para emitir el pasaporte, conecta la wallet vinculada a ACTA para este entorno de prueba.");
+        }
         const signer = (xdr: string, opts: { networkPassphrase: string }) => signXdr(xdr, { ...opts, expectedAddress: owner });
         const identity = await client.getOrCreateIssuerIdentity({ controller: owner, signTransaction: signer });
         try {
@@ -66,6 +70,11 @@ function Register() {
               deforestationCheck: input.verifiedWith,
             },
           },
+        }).catch((error: unknown) => {
+          if (error instanceof Error && /issuer must be the wallet address associated with your API key/i.test(error.message)) {
+            throw new Error("ACTA rechazó esta wallet. Conecta la cuenta con la que se creó la clave ACTA de este entorno de prueba.");
+          }
+          throw error;
         });
         return { txId, issuerDid: identity.did, vcId };
       },

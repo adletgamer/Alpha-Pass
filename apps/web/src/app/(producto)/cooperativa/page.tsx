@@ -86,6 +86,9 @@ export default function CooperativaPage() {
                   {operation.view?.progress.credential ? "Continuar anclaje del pasaporte" : "Crear y anclar pasaporte"}
                 </button>
                 {!verified && <span className="muted" style={{ fontSize: "0.85rem" }}>Primero verifica las parcelas.</span>}
+                  {mode === "testnet" && verified && !operation.view?.progress.credential && (
+                    <p className="muted" style={{ margin: 0 }}>Para emitir con ACTA, usa la wallet vinculada a la clave ACTA de este entorno.</p>
+                  )}
                 {operation.view?.pendingAnchor && <p role="status">Esperando confirmación del anclaje en Stellar.</p>}
                 {mode === "testnet" && !operation.active && <Link href="/probar">Abrir una operación compartida</Link>}
               </>

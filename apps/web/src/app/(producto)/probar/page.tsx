@@ -10,7 +10,7 @@ import { callTestnet, useTestnetWallet } from "@/components/TestnetWallet";
 import { OperationPanel } from "@/components/OperationPanel";
 
 const ROLES = {
-  cooperativa: { label: "Cooperativa · cuenta A", href: "/cooperativa", next: "Verificar las parcelas y anclar el pasaporte." },
+  cooperativa: { label: "Cooperativa · cuenta A", href: "/cooperativa", next: "Verifica las parcelas y ancla el pasaporte con la wallet vinculada a ACTA." },
   importador: { label: "Importador · cuenta B", href: "/importador", next: "Crear y fondear el escrow después de que la cooperativa ancle el pasaporte." },
   verificador: { label: "Verificador", href: "/verificador", next: "Firmar acopio, embarque y llegada en orden. Después vuelve a Importador para liberar el pago de cada hito." },
 } as const;
