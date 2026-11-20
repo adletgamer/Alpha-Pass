@@ -30,11 +30,11 @@ export default function CooperativaPage() {
 
   return (
     <main className="container product-shell">
-      <ProductHero label={individual ? "Cooperativa · Práctica individual" : "Cooperativa"} title={lot.id} identifier example={preview}
+      <ProductHero label={individual ? "Cooperativa · Flujo independiente" : "Cooperativa"} title={lot.id} identifier example={preview}
         description={`${lot.cooperative} · ${lot.product}`}
         actions={!preview && !operation.active && <>
           <button className="btn btn-ghost" type="button" disabled={busy} onClick={reset}>Iniciar otro lote</button>
-          {individual && <Link href="/probar?rol=cooperativa" className="btn btn-ghost">Cambiar experiencia</Link>}
+          {individual && <Link href="/testnet?rol=cooperativa" className="btn btn-ghost">Cambiar rol</Link>}
         </>}
       />
       <ProductMetrics label="Composición del lote" items={[
@@ -96,7 +96,7 @@ export default function CooperativaPage() {
                     <p className="muted" style={{ margin: 0 }}>Para emitir con ACTA, usa la wallet vinculada a la clave ACTA de este entorno.</p>
                   )}
                 {operation.view?.pendingAnchor && <p role="status">Esperando confirmación del anclaje en Stellar.</p>}
-                {!individual && mode === "testnet" && !operation.active && <Link href="/probar">Abrir una operación compartida</Link>}
+                {!individual && mode === "testnet" && !operation.active && <Link href="/testnet">Abrir una operación compartida</Link>}
               </>
             )}
           </section>
@@ -116,7 +116,7 @@ export default function CooperativaPage() {
                 ))}
               </>
             ) : (
-              <p style={{ margin: 0 }}>{individual ? "El cobro se prueba desde la experiencia de Importador, sobre un lote de referencia." : "Esperando que el importador fondee el escrow."}</p>
+              <p style={{ margin: 0 }}>{individual ? "Valida las liberaciones desde el flujo de Importador, sobre un lote con atestaciones en Stellar." : "Esperando que el importador fondee el escrow."}</p>
             )}
           </section>
 

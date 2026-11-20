@@ -12,7 +12,7 @@ import { importerPracticeLot } from "@/lib/testnet-practice";
 import CooperativaPage from "../../cooperativa/page";
 import ImportadorPage from "../../importador/page";
 
-function ImporterPractice({ address }: { address: string }) {
+function ImporterTestnetFlow({ address }: { address: string }) {
   const [state, setState] = useState<{ lot?: Lot; error?: string }>({});
   const [request, retry] = useState(0);
 
@@ -40,25 +40,25 @@ function ImporterPractice({ address }: { address: string }) {
   }
   return (
     <main className="container product-shell">
-      <ProductHero label="Importador" title="Lote de referencia" description="Importa una operación de prueba con pasaporte y atestaciones confirmados en Stellar." />
+      <ProductHero label="Importador · Flujo independiente" title="Lote de referencia" description="Consulta el pasaporte y las atestaciones registradas en LotPassport antes de fondear tu escrow." />
       <section className="card">
         <p className={state.error ? "error" : "product-subtitle"} role={state.error ? "alert" : "status"}>
           {state.error ?? "Comprobando el pasaporte y las atestaciones en Stellar Testnet…"}
         </p>
         {state.error && <div className="product-inline-actions">
           <button type="button" className="btn" onClick={() => { setState({}); retry((value) => value + 1); }}>Volver a consultar</button>
-          <Link className="btn btn-ghost" href="/probar?rol=importador">Volver a Testnet</Link>
+          <Link className="btn btn-ghost" href="/testnet?rol=importador">Volver al entorno Testnet</Link>
         </div>}
       </section>
     </main>
   );
 }
 
-export default function PracticePage({ params }: { params: Promise<{ rol: string }> }) {
+export default function TestnetRolePage({ params }: { params: Promise<{ rol: string }> }) {
   const { rol } = use(params);
   const { address } = useTestnetWallet();
   if (rol !== "cooperativa" && rol !== "importador") notFound();
   if (!address) return null;
-  if (rol === "importador") return <ImporterPractice key={address} address={address} />;
+  if (rol === "importador") return <ImporterTestnetFlow key={address} address={address} />;
   return <LotProvider key={address} practice={{ role: rol, address }}><CooperativaPage /></LotProvider>;
 }

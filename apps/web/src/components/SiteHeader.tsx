@@ -11,10 +11,11 @@ import { useTestnetWallet } from "./TestnetWallet";
 
 export function SiteHeader() {
   const path = usePathname();
+  const inTestnetRole = path.startsWith("/testnet/");
   const { lot } = useLot();
   const { address } = useTestnetWallet();
   const LINKS = [
-    ...(MODE === "testnet" ? [{ href: "/probar", label: "Probar en Testnet" }] : []),
+    ...(MODE === "testnet" ? [{ href: "/testnet", label: "Entorno Testnet" }] : []),
     { href: "/cooperativa", label: "Cooperativa" },
     { href: "/importador", label: "Importador" },
     { href: "/verificador", label: "Verificador" },
@@ -32,11 +33,11 @@ export function SiteHeader() {
           </Link>
           <nav className="site-nav" aria-label="Vistas por rol">
             {LINKS.map((l) => (
-              <Link key={l.href} href={l.href} aria-current={path === l.href ? "page" : undefined}>
+              <Link key={l.href} href={l.href} aria-current={path === l.href ? "page" : l.href === "/testnet" && inTestnetRole ? "location" : undefined}>
                 {l.label}
               </Link>
             ))}
-            {address && path !== "/probar" && !path.startsWith("/lote/") && <WalletButton />}
+            {address && path !== "/testnet" && !path.startsWith("/lote/") && <WalletButton />}
           </nav>
         </div>
       </header>

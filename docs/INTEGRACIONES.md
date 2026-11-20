@@ -37,9 +37,9 @@ Las identidades de prueba se guardaron localmente bajo `contracts/.stellar/` (ig
 3. `/api/escrow/release` simula `is_attested`; si es `false`, responde 409 y no toca el escrow.
 4. Si es `true`, pide a Trustless Work la aprobación y la liberación, las firma con la cuenta aprobadora y las envía.
 
-## Probar en Testnet con cualquier wallet
+## Preparar una wallet para Stellar Testnet
 
-La página `/probar` deja lista una wallet de Stellar en Testnet (Freighter, xBull, Lobstr, Albedo…):
+La página `/testnet` deja lista una wallet de Stellar en Testnet (Freighter, xBull, Lobstr, Albedo…):
 
 1. **XLM:** friendbot crea la cuenta (`/api/testnet`, acción `fund`).
 2. **USDC de prueba:** la wallet firma una transacción que abre la trustline de USDC de Circle (Testnet) y compra 200 USDC con su propio XLM en el DEX de Testnet (`pathPaymentStrictReceive`). Alpha Pass no custodia ni envía fondos.
@@ -68,7 +68,7 @@ La emisión de la credencial en ACTA ocurre en el navegador con la wallet; el sc
 
 ## Operación compartida en Testnet
 
-`/probar` también permite elegir una práctica individual. **Cooperativa** usa una cuenta con XLM de Friendbot para evaluar parcelas en Whisp y firmar el anclaje en LotPassport. **Importador** usa su propia cuenta con USDC de prueba. La contraparte y los tres hitos vienen del lote de referencia indicado por `NEXT_PUBLIC_TESTNET_IMPORTER_LOT_ID`. Los plazos y estados de fondeo de esa práctica se conservan en el navegador por cuenta.
+`/testnet` permite elegir un flujo independiente. En `/testnet/cooperativa` la cuenta con XLM de Friendbot evalúa parcelas en Whisp y firma el anclaje en LotPassport. En `/testnet/importador` el importador usa su propia cuenta con USDC de prueba. La contraparte y los tres hitos vienen del lote indicado por `NEXT_PUBLIC_TESTNET_IMPORTER_LOT_ID`. El estado del fondeo se conserva en el navegador por cuenta.
 
 El lote de referencia `2026-JAE-014-SOLO01` fue anclado y atestado en Stellar Testnet. La validación desplegó y fondeó el escrow `CAA66ALCFG7LJO2BBY2KD5L2GVWWO2MZWWRFHG5KDEOUG6LY5A6DK62W`, confirmó el bloqueo antes de la primera atestación y liberó los tres pagos. El abono total a la cooperativa fue de 149,55 USDC de prueba.
 
@@ -76,7 +76,7 @@ Para preparar otra referencia, crea y fondea las identidades `alpha-cooperativa`
 
 ### Recorrido con un lote compartido
 
-1. Prepara un PostgreSQL de prueba, preferiblemente una rama aislada de Neon. En `apps/web`, configura `DATABASE_URL` en el servidor y `DATABASE_URL_UNPOOLED` para la migración si dispones de ambas conexiones. Ejecuta `npm run db:migrate`. Las operaciones de Testnet existentes en un navegador siguen siendo locales. Para usar los enlaces, abre un lote nuevo desde `/probar` antes de anclarlo.
+1. Prepara un PostgreSQL de prueba, preferiblemente una rama aislada de Neon. En `apps/web`, configura `DATABASE_URL` en el servidor y `DATABASE_URL_UNPOOLED` para la migración si dispones de ambas conexiones. Ejecuta `npm run db:migrate`. Las operaciones de Testnet existentes en un navegador siguen siendo locales. Para usar los enlaces, abre un lote nuevo desde `/testnet` antes de anclarlo.
 2. Conecta la cuenta de cooperativa. Pulsa **Abrir operación compartida** y guarda el enlace de cooperativa. Copia el enlace de importador y el del verificador para sus respectivos perfiles. El código de cada enlace se guarda como hash en el servidor y se retira de la barra de direcciones al abrirlo.
 3. Verifica las parcelas en Cooperativa. Usa la wallet Testnet con la que se creó `ACTA_API_KEY` para firmar la emisión y luego anclar el pasaporte. Puedes configurar su dirección pública en `NEXT_PUBLIC_ACTA_ISSUER_ADDRESS` para avisar antes de pedir firmas. Si cancelas el anclaje después de guardar la credencial, **Continuar anclaje del pasaporte** la reutiliza. Si una transacción quedó pendiente, actualiza el lote antes de continuar.
 4. Desde el otro perfil, conecta la cuenta compradora y abre el enlace de importador. Crea el escrow y cancela la firma del depósito. Tras recargar, pulsa **Continuar fondeo**. Debe conservarse el mismo contrato. Revisa los hashes bajo **Referencias de transacciones** en la guía.

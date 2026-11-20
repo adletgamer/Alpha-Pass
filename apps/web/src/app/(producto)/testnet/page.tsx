@@ -12,18 +12,22 @@ import { OperationPanel } from "@/components/OperationPanel";
 import { ProductHero, ProductMetrics } from "@/components/ProductDisplay";
 
 const ROLES = {
-  cooperativa: { label: "Cooperativa", href: "/practica/cooperativa", next: "Evalúa las parcelas con Whisp y firma su anclaje en LotPassport." },
-  importador: { label: "Importador", href: "/practica/importador", next: "Fondea un escrow y libera pagos sobre un lote con atestaciones confirmadas." },
+  cooperativa: { label: "Cooperativa", href: "/testnet/cooperativa", next: "Evalúa las parcelas con Whisp y firma su anclaje en LotPassport." },
+  importador: { label: "Importador", href: "/testnet/importador", next: "Fondea un escrow y libera pagos sobre un lote con atestaciones confirmadas." },
   verificador: { label: "Verificador de equipo", href: "/verificador", next: "Firma acopio, embarque y llegada en la operación compartida." },
 } as const;
 
 const fmt = (v: string) => Number(v).toLocaleString("es-PE", { maximumFractionDigits: 2 });
 
-export default function ProbarPage() {
-  return <Suspense fallback={<main className="container product-shell"><ProductHero label="Acceso al producto" title="Prueba Alpha Pass con tu wallet" /></main>}><TestnetGuide /></Suspense>;
+export default function TestnetPage() {
+  return (
+    <Suspense fallback={<main className="container product-shell"><ProductHero label="Entorno de integración" title="Alpha Pass en Stellar Testnet" /></main>}>
+      <TestnetWorkspace />
+    </Suspense>
+  );
 }
 
-function TestnetGuide() {
+function TestnetWorkspace() {
   const { lot } = useLot();
   const { address, status, connecting, reading, error: walletError, connect, refresh } = useTestnetWallet();
   const requestedRole = useSearchParams().get("rol");
@@ -89,10 +93,10 @@ function TestnetGuide() {
 
   return (
     <main className="container product-shell">
-      <ProductHero label="Prácticas de Testnet" title="Elige qué quieres probar" description="Usa una sola wallet para probar Cooperativa o Importador con transacciones de Stellar Testnet." />
+      <ProductHero label="Entorno de integración" title="Alpha Pass en Stellar Testnet" description="Selecciona Cooperativa o Importador y conecta tu wallet para validar transacciones en Stellar Testnet." />
 
       <fieldset className="testnet-role-picker">
-        <legend>Experiencia</legend>
+        <legend>Rol de operación</legend>
         {(["cooperativa", "importador", ...(role === "verificador" ? ["verificador"] : [])] as (keyof typeof ROLES)[]).map((value) => (
           <label key={value} className="testnet-role-choice">
             <input type="radio" name="testnet-role" checked={role === value} disabled={waiting} onChange={() => { setRole(value); setMsg(null); }} />
@@ -112,13 +116,13 @@ function TestnetGuide() {
       <div className="testnet-layout">
         <section className="card" aria-labelledby="preparar">
           <div className="product-card-heading">
-            <h2 id="preparar">{address ? `Preparar wallet de ${ROLES[role].label.toLowerCase()}` : "Conecta tu wallet para comenzar"}</h2>
+            <h2 id="preparar">{address ? `Preparar wallet de ${ROLES[role].label.toLowerCase()}` : "Conexión de wallet"}</h2>
             <span className={`pill ${address ? "pill-ok" : "pill-wait"}`}>{address ? "Conectada" : "Pendiente de conexión"}</span>
           </div>
           {address ? (
             <div className="product-address"><strong>Cuenta activa</strong><code className="mono">{address}</code></div>
           ) : (
-            <p className="product-subtitle">Elige Freighter u otra wallet de Stellar. Usarás tu cuenta para confirmar las firmas del flujo de prueba.</p>
+            <p className="product-subtitle">Conecta Freighter u otra wallet de Stellar para firmar las transacciones de tu rol.</p>
           )}
           <div>
             <button className={address ? "btn btn-ghost" : "btn"} type="button" disabled={waiting} onClick={() => { setMsg(null); void connect(); }}>
@@ -172,8 +176,8 @@ function TestnetGuide() {
           )}
         </section>
 
-        <aside className="card" aria-labelledby="resultado-practica">
-          <h2 id="resultado-practica">Qué vas a comprobar</h2>
+        <aside className="card" aria-labelledby="alcance-validacion">
+          <h2 id="alcance-validacion">Alcance de la validación</h2>
           <ul className="testnet-account-list">
             {role === "cooperativa" ? (
               <>
@@ -182,7 +186,7 @@ function TestnetGuide() {
               </>
             ) : role === "importador" ? (
               <>
-                <li><strong>Contraparte preparada</strong><span className="muted">El lote de referencia ya tiene cooperativa y tres atestaciones en LotPassport.</span></li>
+                <li><strong>Contraparte registrada</strong><span className="muted">El lote de referencia ya tiene cooperativa y tres atestaciones en LotPassport.</span></li>
                 <li><strong>Escrow en USDC de prueba</strong><span className="muted">Firma el fondeo y comprueba las liberaciones por hito.</span><Link href={`/lote/${TESTNET_IMPORTER_LOT_ID}`}>Ver lote de referencia</Link></li>
               </>
             ) : (
@@ -193,7 +197,7 @@ function TestnetGuide() {
       </div>
 
       <details className="card testnet-team">
-        <summary>Operación compartida con tu equipo</summary>
+        <summary>Operación compartida</summary>
         <p className="product-subtitle">Para trabajar sobre el mismo lote, la cooperativa y el importador usan sus propias cuentas. La emisión ACTA requiere la wallet vinculada a la clave del entorno.</p>
         {address && <>
           <OperationPanel />

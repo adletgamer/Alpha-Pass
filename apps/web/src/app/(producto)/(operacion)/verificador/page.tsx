@@ -56,7 +56,7 @@ export default function VerificadorPage() {
           <p className="muted" style={{ margin: 0 }}>
             {!correctRole ? "Abre el enlace del verificador para este lote." : wallet.reading ? "Consultando permisos de la wallet…" :
               wallet.address ? "El permiso para este hito aún no está confirmado." : "Conecta una wallet registrada como verificador de prueba."}{" "}
-            <Link href="/probar">Preparar la cuenta en Testnet</Link>
+            <Link href="/testnet">Preparar la cuenta en Testnet</Link>
           </p>
         )}
         {!lot.passportRoot ? (

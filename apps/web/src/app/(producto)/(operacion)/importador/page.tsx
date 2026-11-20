@@ -40,9 +40,9 @@ export default function ImportadorPage() {
 
   return (
     <main className="container product-shell">
-      <ProductHero label={individual ? "Importador · Práctica individual" : "Importador"} title={lot.id} identifier example={preview}
+      <ProductHero label={individual ? "Importador · Flujo independiente" : "Importador"} title={lot.id} identifier example={preview}
         description={individual ? "Lote de referencia con pasaporte y atestaciones confirmados en Stellar. Firma el escrow con tu wallet." : `Compra a ${lot.cooperative} · ${lot.product}`}
-        actions={individual && <Link href="/probar?rol=importador" className="btn btn-ghost">Cambiar experiencia</Link>}
+        actions={individual && <Link href="/testnet?rol=importador" className="btn btn-ghost">Cambiar rol</Link>}
       />
       <ProductMetrics label="Estado del lote y del pago" items={[
         { label: "Monto del escrow", value: escrow ? <>{escrow.amount.toLocaleString("es-PE")} <span className="product-unit">{escrow.asset}</span></> : "—",

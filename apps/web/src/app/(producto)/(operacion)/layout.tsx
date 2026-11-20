@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useTestnetWallet } from "@/components/TestnetWallet";
 import { WalletButton } from "@/components/WalletButton";
 import { MODE } from "@/lib/adapters";
@@ -8,7 +9,10 @@ import { ProductHero } from "@/components/ProductDisplay";
 
 export default function OperationLayout({ children }: { children: React.ReactNode }) {
   const { address } = useTestnetWallet();
+  const path = usePathname();
   if (MODE === "testnet" && address) return children;
+  const role = path.startsWith("/testnet/") ? path.split("/")[2] : undefined;
+  const setupHref = role === "importador" || role === "cooperativa" ? `/testnet?rol=${role}` : "/testnet";
 
   return (
     <main className="container product-shell">
@@ -25,7 +29,7 @@ export default function OperationLayout({ children }: { children: React.ReactNod
             <h2>Cuenta de Testnet</h2>
             <div className="product-inline-actions">
               <WalletButton />
-              <Link className="btn btn-ghost" href="/probar">Preparar mi cuenta</Link>
+              <Link className="btn btn-ghost" href={setupHref}>Preparar mi cuenta</Link>
             </div>
           </>
         ) : (
