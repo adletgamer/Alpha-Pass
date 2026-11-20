@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { MODE } from "@/lib/adapters";
 import { useLot } from "@/lib/store";
 import { MILESTONE_LABEL, type Milestone } from "@/lib/domain";
@@ -18,9 +19,14 @@ const ROLES = {
 const fmt = (v: string) => Number(v).toLocaleString("es-PE", { maximumFractionDigits: 2 });
 
 export default function ProbarPage() {
+  return <Suspense fallback={<main className="container"><h1>Probar en Stellar Testnet</h1></main>}><TestnetGuide /></Suspense>;
+}
+
+function TestnetGuide() {
   const { lot } = useLot();
-  const { address, status, connecting, reading, connect, refresh } = useTestnetWallet();
-  const [role, setRole] = useState<keyof typeof ROLES>("cooperativa");
+  const { address, status, connecting, reading, error: walletError, connect, refresh } = useTestnetWallet();
+  const requestedRole = useSearchParams().get("rol");
+  const [role, setRole] = useState<keyof typeof ROLES>(requestedRole === "importador" || requestedRole === "verificador" ? requestedRole : "cooperativa");
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
 
@@ -84,27 +90,19 @@ export default function ProbarPage() {
     <main className="container" style={{ maxWidth: 820 }}>
       <div>
         <div className="muted">Stellar Testnet · sin dinero real</div>
-        <h1>Prueba el flujo completo con tu wallet</h1>
-        <p>Prepara dos cuentas Stellar en Testnet. La cuenta A cobra y la cuenta B deposita. Puedes registrar una de ellas como verificador de prueba.</p>
-        <Link href="/#explorar">Probar sin wallet en la simulación</Link>
+        <h1>Prueba Alpha Pass con tu wallet</h1>
+        <p>Prepara tu cuenta para registrar el origen del lote, firmar atestaciones o fondear los pagos de prueba.</p>
       </div>
-
-      <section className="card" aria-labelledby="dos-cuentas">
-        <h2 id="dos-cuentas">Vas a necesitar dos cuentas</h2>
-        <p style={{ margin: 0 }}>
-          El escrow no deja que la misma wallet pague y cobre. Usa una cuenta como <strong>cooperativa</strong> (ancla el lote y recibe los pagos)
-          y otra como <strong>importador</strong> (deposita el pago). En Freighter puedes crear una segunda cuenta en el mismo navegador:
-          cambia de cuenta y vuelve a pulsar &quot;Conectar wallet&quot;. Prepara cada cuenta con esta página.
-        </p>
-      </section>
 
       <section className="card" aria-labelledby="preparar">
         <div className="row" style={{ justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-          <h2 id="preparar">Preparar esta wallet</h2>
+          <h2 id="preparar">{address ? "Preparar esta wallet" : "Conecta tu wallet para comenzar"}</h2>
           <button className={address ? "btn btn-ghost" : "btn"} type="button" disabled={waiting} onClick={() => { setMsg(null); void connect(); }}>
             {address ? "Cambiar cuenta" : "Conectar wallet"}
           </button>
         </div>
+        {!address && <p className="muted" style={{ margin: 0 }}>Selecciona Freighter u otra wallet de Stellar para consultar tu cuenta y preparar el rol que vas a usar.</p>}
+        {walletError && <p className="error" role="alert" style={{ margin: 0 }}>{walletError}</p>}
         {address && (
           <div style={{ wordBreak: "break-all", fontSize: "0.85rem" }}>Cuenta activa: <span className="mono">{address}</span></div>
         )}
@@ -116,6 +114,7 @@ export default function ProbarPage() {
             <div className="card"><span className="muted">Verificadora</span><span className="stat-value">{status.verifierFor.length === 3 ? "Sí, 3 hitos" : status.verifierFor.length ? status.verifierFor.map((m) => MILESTONE_LABEL[m]).join(", ") : "No"}</span></div>
           </div>
         )}
+        {address && <>
         <label>¿Qué rol quieres preparar?{" "}
           <select value={role} onChange={(event) => { setRole(event.target.value as keyof typeof ROLES); setMsg(null); }}>
             {Object.entries(ROLES).map(([value, option]) => <option key={value} value={value}>{option.label}</option>)}
@@ -147,20 +146,29 @@ export default function ProbarPage() {
             </button>
           </li>}
         </ol>
+        </>}
         {msg && <p className={msg.kind === "error" ? "error" : "muted"} role={msg.kind === "error" ? "alert" : "status"} style={{ margin: 0 }}>{msg.text}</p>}
         {address && !status && !waiting && <div><button className="btn btn-ghost" type="button" onClick={refresh}>Volver a consultar la cuenta</button></div>}
         {roleReady && <p><strong>Cuenta preparada.</strong> {ROLES[role].next} <Link href={ROLES[role].href}>Continuar como {role}</Link></p>}
       </section>
 
-      <OperationPanel />
+      <section className="card" aria-labelledby="dos-cuentas">
+        <h2 id="dos-cuentas">Dos cuentas para completar el recorrido</h2>
+        <p style={{ margin: 0 }}>
+          La <strong>cooperativa</strong> ancla el pasaporte y recibe los pagos. El <strong>importador</strong> deposita los fondos desde otra cuenta.
+          Puedes registrar una de ellas como verificador de prueba. Para preparar una segunda cuenta, cámbiala en tu wallet y vuelve a conectar.
+        </p>
+      </section>
+
+      {address && <OperationPanel />}
       <section className="card" aria-labelledby="recorrido">
         <h2 id="recorrido">Recorrido del lote {lot.id}</h2>
         <ol style={{ margin: 0, paddingLeft: 20, display: "grid", gap: 8 }}>
-          <li><strong>Cooperativa</strong> (cuenta A): verifica las parcelas con Whisp y ancla el pasaporte. Firmas con tu wallet. <Link href="/cooperativa">Ir a cooperativa</Link></li>
-          <li><strong>Importador</strong> (cuenta B, con USDC): crea y fondea el escrow de {TESTNET_ESCROW_AMOUNT} USDC. <Link href="/importador">Ir a importador</Link></li>
-          <li><strong>Verificador</strong> (cuenta registrada): firma acopio, embarque y llegada, en orden. <Link href="/verificador">Ir a verificador</Link></li>
+          <li><strong>Cooperativa</strong> (cuenta A): verifica las parcelas con Whisp y ancla el pasaporte.</li>
+          <li><strong>Importador</strong> (cuenta B, con USDC): crea y fondea el escrow de {TESTNET_ESCROW_AMOUNT} USDC.</li>
+          <li><strong>Verificador</strong> (cuenta registrada): firma acopio, embarque y llegada, en orden.</li>
           <li><strong>Importador</strong>: libera cada hito. El servidor comprueba en LotPassport que el hito está firmado; si no, no paga.</li>
-          <li><strong>Público</strong>: comparte el pasaporte leído de la cadena. <Link href={`/lote/${lot.id}`}>Ver pasaporte público</Link></li>
+          <li><strong>Pasaporte público</strong>: consulta el lote registrado en Stellar. {lot.passportRoot && <Link href={`/lote/${lot.id}`}>Ver pasaporte público</Link>}</li>
         </ol>
         <p className="muted" style={{ margin: 0, fontSize: "0.85rem" }}>
           Las parcelas y productores son datos de ejemplo. Las transacciones son reales en Stellar Testnet y se pueden ver en stellar.expert.

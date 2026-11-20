@@ -1,6 +1,6 @@
 # Integraciones
 
-Con `NEXT_PUBLIC_ALPHA_MODE=demo` todo es simulado. Con `testnet` la app usa los servicios de prueba. Las claves se configuran en el servidor y se mantienen fuera de Git, sin el prefijo `NEXT_PUBLIC_`.
+Configura `NEXT_PUBLIC_ALPHA_MODE=testnet` para habilitar el flujo con wallet y proveedores de prueba. Las claves se configuran en el servidor y se mantienen fuera de Git, sin el prefijo `NEXT_PUBLIC_`.
 
 | Herramienta | Cómo se integra | Archivo | Clave | Estado |
 | --- | --- | --- | --- | --- |
@@ -89,4 +89,4 @@ En Testnet, el enlace del importador permite descargar el expediente de una oper
 
 El pasaporte público usa LotPassport como referencia y no publica las coordenadas. Puede leer un expediente local y recalcular su raíz Merkle sin enviar el archivo. La raíz cubre el contenido de `claims`. La instantánea de atestaciones y pagos refleja la consulta realizada al exportar. Este archivo conserva evidencias para revisión y la declaración EUDR se tramita por separado.
 
-El ejemplo en `/lote/ejemplo` permite probar la comparación sin wallet. Los expedientes simulados solo se aceptan al comparar contra una referencia de simulación.
+El pasaporte público se puede consultar por enlace o QR. Para obtener el expediente de una operación, entra con la wallet y el enlace del importador.

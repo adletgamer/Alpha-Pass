@@ -6,14 +6,13 @@ import { eligibleParcels, useLot } from "@/lib/store";
 import { canRelease, milestoneAmount, releasedAmount, GATE_MESSAGE } from "@/lib/release-gate";
 import { MILESTONES, MILESTONE_LABEL, MILESTONE_SHARE, type AssetCode, type Milestone } from "@/lib/domain";
 import { ASSETS } from "@/lib/adapters";
-import { DEMO_ESCROW_AMOUNT, TESTNET_ESCROW_AMOUNT } from "@/lib/sample-data";
-import { buildLotEvidence } from "@/lib/lot-evidence";
+import { TESTNET_ESCROW_AMOUNT } from "@/lib/sample-data";
 import { LotEvidenceDownload } from "@/components/LotEvidenceDownload";
 
 export default function ImportadorPage() {
-  const { lot, mode, preview, busy, operation, fundEscrow, release, attest } = useLot();
+  const { lot, preview, busy, operation, fundEscrow, release } = useLot();
   const [asset, setAsset] = useState<AssetCode>("USDC");
-  const [amount, setAmount] = useState(mode === "testnet" ? TESTNET_ESCROW_AMOUNT : DEMO_ESCROW_AMOUNT);
+  const [amount, setAmount] = useState(TESTNET_ESCROW_AMOUNT);
   const [fundError, setFundError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Partial<Record<Milestone, string>>>({});
   const escrow = lot.escrow;
@@ -21,8 +20,7 @@ export default function ImportadorPage() {
   const canEdit = !operation.active || operation.view?.role === "importador";
   const pending = operation.view?.pendingDeploy || operation.view?.pendingFund;
   const parcels = eligibleParcels(lot);
-  const nextProof = MILESTONES.find((m) => !lot.attestations.some((a) => a.milestone === m));
-  const canExportEvidence = Boolean(lot.passportRoot) && (mode === "demo" || operation.view?.role === "importador");
+  const canExportEvidence = Boolean(lot.passportRoot) && operation.view?.role === "importador";
 
   async function fund() {
     setFundError(null);
@@ -31,12 +29,6 @@ export default function ImportadorPage() {
     } catch (error) {
       setFundError(error instanceof Error ? error.message : "No se pudo fondear el escrow.");
     }
-  }
-
-  async function addSampleProof() {
-    if (!nextProof) return;
-    const error = await attest(nextProof, "Verificador de ejemplo", `${lot.id}:${nextProof}`);
-    setErrors((current) => ({ ...current, [nextProof]: error ?? undefined }));
   }
 
   async function tryRelease(m: Milestone) {
@@ -57,7 +49,7 @@ export default function ImportadorPage() {
         <div className="card"><span className="muted">Pasaporte</span><span className="stat-value">{lot.passportRoot ? `${eligibleParcels(lot).length} parcelas` : "Sin anclar"}</span></div>
       </div>
 
-      {!escrow?.funded && (
+      {!preview && !escrow?.funded && (
         <section className="card" aria-labelledby="fondear">
           <h2 id="fondear">Fondear el escrow</h2>
           <p className="muted" style={{ margin: 0 }}>Elige la moneda del contrato. El escrow (Trustless Work) acepta USDC o EURC.</p>
@@ -98,6 +90,8 @@ export default function ImportadorPage() {
               </div>
               {done ? (
                 <span className="pill pill-ok">Liberado</span>
+              ) : preview ? (
+                <span className="pill pill-wait">{gate.ok ? "Listo para liberar" : "Retenido"}</span>
               ) : (
                 <button
                   type="button"
@@ -112,14 +106,6 @@ export default function ImportadorPage() {
             </div>
           );
         })}
-        {preview && nextProof && escrow && (
-          <div>
-            <p className="muted">Intenta liberar el hito sin prueba. Después añade una prueba de ejemplo y vuelve a intentarlo.</p>
-            <button className="btn btn-ghost" type="button" disabled={busy} onClick={addSampleProof}>
-              Añadir prueba de ejemplo para {MILESTONE_LABEL[nextProof].toLowerCase()}
-            </button>
-          </div>
-        )}
       </section>
 
       {!preview && (
@@ -128,14 +114,11 @@ export default function ImportadorPage() {
           <p className="muted" style={{ margin: 0 }}>Reúne la evidencia de origen, las atestaciones y el estado de los pagos en un JSON privado. Comprueba el origen con la raíz del pasaporte.</p>
           {canExportEvidence ? (
             <div className="row" style={{ gap: 12 }}>
-              <LotEvidenceDownload
-                load={mode === "demo" ? () => buildLotEvidence(lot, { type: "simulation" }) : operation.evidence}
-                label={mode === "demo" ? "Descargar expediente simulado" : "Descargar expediente"}
-              />
+              <LotEvidenceDownload load={operation.evidence} label="Descargar expediente" />
               <Link className="btn btn-ghost" href={`/lote/${lot.id}#verificar-expediente`}>Comprobar en el pasaporte</Link>
             </div>
           ) : (
-            <p className="muted" style={{ margin: 0 }}>{mode === "testnet" && operation.view?.role !== "importador"
+            <p className="muted" style={{ margin: 0 }}>{operation.view?.role !== "importador"
               ? "Abre el enlace de importador de una operación compartida."
               : "Disponible en cuanto se ancle el pasaporte."}</p>
           )}
@@ -143,11 +126,11 @@ export default function ImportadorPage() {
       )}
 
       <section className="card card-dark" aria-labelledby="dds">
-        <h2 id="dds">Exportar parcelas aptas</h2>
+        <h2 id="dds">{preview ? "Parcelas aptas para el expediente" : "Exportar parcelas aptas"}</h2>
         <p style={{ margin: 0 }}>{parcels.length
           ? `El GeoJSON contiene ${parcels.length} ${parcels.length === 1 ? "parcela apta" : "parcelas aptas"}: geometría, superficie y resultado de riesgo.`
           : "Verifica las parcelas en Cooperativa. Podrás descargar el GeoJSON cuando haya parcelas aptas."}</p>
-        <div className="row" style={{ gap: 12 }}>
+        {!preview && <div className="row" style={{ gap: 12 }}>
           {parcels.length > 0 && <a
             className="btn"
             style={{ background: "var(--ap-parchment)", color: "var(--ap-green-800)", borderColor: "var(--ap-parchment)" }}
@@ -159,8 +142,8 @@ export default function ImportadorPage() {
           >
             Descargar parcelas en GeoJSON
           </a>}
-          {!preview && <Link className="btn btn-ghost" style={{ color: "var(--ap-parchment)", borderColor: "var(--ap-parchment)" }} href={`/lote/${lot.id}`}>Ver pasaporte público</Link>}
-        </div>
+          {lot.passportRoot && <Link className="btn btn-ghost" style={{ color: "var(--ap-parchment)", borderColor: "var(--ap-parchment)" }} href={`/lote/${lot.id}`}>Ver pasaporte público</Link>}
+        </div>}
       </section>
     </main>
   );

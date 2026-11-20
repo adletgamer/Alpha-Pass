@@ -62,7 +62,6 @@ const STEPS_EN = [
 export function HowItWorks({ locale }: { locale: HomeLocale }) {
   const steps = locale === "en" ? STEPS_EN : STEPS;
   const [active, setActive] = useState(0);
-  const [hasProof, setHasProof] = useState(false);
   const step = steps[active];
 
   return (
@@ -101,7 +100,7 @@ export function HowItWorks({ locale }: { locale: HomeLocale }) {
       </div>
       <div id="how-panel" role="tabpanel" aria-labelledby={`how-tab-${active}`} className="how-panel">
         <p className="how-text">{step.text}</p>
-        <StepVisual step={active} locale={locale} hasProof={hasProof} onProofChange={setHasProof} />
+        <StepVisual step={active} locale={locale} />
         <ul className="how-detail">
           {step.detail.map((d) => <li key={d}>{d}</li>)}
         </ul>
@@ -120,31 +119,24 @@ export function HowItWorks({ locale }: { locale: HomeLocale }) {
 
 const MILESTONE_LABEL_EN = { acopio: "Collection", embarque: "Shipment", llegada: "Arrival" };
 
-function StepVisual({ step, locale, hasProof, onProofChange }: { step: number; locale: HomeLocale; hasProof: boolean; onProofChange: (value: boolean) => void }) {
+function StepVisual({ step, locale }: { step: number; locale: HomeLocale }) {
   if (step === 3) {
     return (
-      <div className="how-visual" aria-label={locale === "en" ? "Sample lot payment milestone simulation" : "Simulación de hitos de pago del lote de ejemplo"}>
+      <div className="how-visual" aria-label={locale === "en" ? "Milestone payment requirements" : "Requisitos de pago por hito"}>
         <div className="proof-demo">
           <div>
-            <span className="mono proof-demo-label">{locale === "en" ? "Attempt to release collection payment" : "Intento de liberar el acopio"}</span>
-            <strong>{hasProof
-              ? (locale === "en" ? "Proof verified · 4,950 USDC released" : "Prueba verificada · 4,950 USDC liberados")
-              : (locale === "en" ? "No credential · payment held" : "Sin credencial · pago retenido")}</strong>
+            <span className="mono proof-demo-label">LotPassport · Trustless Work</span>
+            <strong>{locale === "en" ? "A signed attestation unlocks each payment." : "Una atestación firmada habilita cada pago."}</strong>
           </div>
-          <button type="button" className={hasProof ? "proof-switch is-on" : "proof-switch"} aria-pressed={hasProof} onClick={() => onProofChange(!hasProof)}>
-            {hasProof ? (locale === "en" ? "Remove proof" : "Quitar prueba") : (locale === "en" ? "Add proof" : "Añadir prueba")}
-          </button>
         </div>
         <div className="milestone-bar">
-          {MILESTONES.map((m, i) => (
-            <div key={m} className={`milestone-seg${i === 0 && hasProof ? " is-released" : ""}`} style={{ flexGrow: MILESTONE_SHARE[m] }}>
+          {MILESTONES.map((m) => (
+            <div key={m} className="milestone-seg" style={{ flexGrow: MILESTONE_SHARE[m] }}>
               <span className="mono">{MILESTONE_SHARE[m]}%</span>
               <span>{locale === "en" ? MILESTONE_LABEL_EN[m] : MILESTONE_LABEL[m]}</span>
-              <small>{i === 0 && hasProof ? (locale === "en" ? "Released" : "Liberado") : (locale === "en" ? "Locked" : "Bloqueado")}</small>
             </div>
           ))}
         </div>
-        <p className="how-note">{locale === "en" ? "Sample lot simulation. No milestone releases funds without proof." : "Simulación del lote de ejemplo. Sin prueba, ningún hito libera fondos."}</p>
       </div>
     );
   }

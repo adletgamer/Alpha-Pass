@@ -6,12 +6,6 @@ import { useLot } from "@/lib/store";
 import { MILESTONES, MILESTONE_LABEL, type Milestone } from "@/lib/domain";
 import { callTestnet, useTestnetWallet } from "@/components/TestnetWallet";
 
-const ISSUERS: Record<Milestone, string> = {
-  acopio: "Almacén de acopio (demo)",
-  embarque: "Agente de carga (demo)",
-  llegada: "Importador en destino (demo)",
-};
-
 const EVIDENCE_HINT: Record<Milestone, string> = {
   acopio: "Ej.: guía de recepción 0001-2345, 60 sacos",
   embarque: "Ej.: número del conocimiento de embarque (BL)",
@@ -19,28 +13,24 @@ const EVIDENCE_HINT: Record<Milestone, string> = {
 };
 
 export default function VerificadorPage() {
-  const { lot, mode, busy, operation, attest } = useLot();
+  const { lot, busy, operation, attest } = useLot();
   const wallet = useTestnetWallet();
   const next = MILESTONES.find((m) => !lot.attestations.some((a) => a.milestone === m));
   const [evidence, setEvidence] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const correctRole = !operation.active || operation.view?.role === "verificador";
-  const allowed = correctRole && (mode === "demo" || Boolean(next && wallet.status?.verifierFor.includes(next)));
+  const allowed = correctRole && Boolean(next && wallet.status?.verifierFor.includes(next));
 
   async function sign(m: Milestone) {
     setError(null);
     setChecking(true);
     try {
-      let issuer = ISSUERS[m];
-      if (mode === "testnet") {
-        const { currentAddress } = await import("@/lib/wallet");
-        const address = await currentAddress();
-        if (address !== wallet.address) throw new Error("Cambiaste de cuenta. Conecta de nuevo la cuenta que va a firmar.");
-        const status = await callTestnet<{ verifierFor: Milestone[] }>({ action: "status", address });
-        if (!status.verifierFor.includes(m)) throw new Error("Esta cuenta no tiene permiso para firmar este hito.");
-        issuer = address;
-      }
+      const { currentAddress } = await import("@/lib/wallet");
+      const issuer = await currentAddress();
+      if (issuer !== wallet.address) throw new Error("Cambiaste de cuenta. Conecta de nuevo la cuenta que va a firmar.");
+      const status = await callTestnet<{ verifierFor: Milestone[] }>({ action: "status", address: issuer });
+      if (!status.verifierFor.includes(m)) throw new Error("Esta cuenta no tiene permiso para firmar este hito.");
       const failure = await attest(m, issuer, evidence || `${lot.id}:${m}`);
       setError(failure);
       if (!failure) setEvidence("");
@@ -54,12 +44,12 @@ export default function VerificadorPage() {
   return (
     <main className="container">
       <div>
-        <div className="muted">{mode === "testnet" ? "Verificador en Stellar Testnet" : "Verificador de ejemplo"}</div>
+        <div className="muted">Verificador en Stellar Testnet</div>
         <h1 className="mono">Lote {lot.id}</h1>
       </div>
       <section className="card" aria-labelledby="firmar">
         <h2 id="firmar">Firmar el siguiente hito</h2>
-        {mode === "testnet" && next && !allowed && (
+        {next && !allowed && (
           <p className="muted" style={{ margin: 0 }}>
             {!correctRole ? "Abre el enlace del verificador para este lote." : wallet.reading ? "Consultando permisos de la wallet…" :
               wallet.address ? "El permiso para este hito aún no está confirmado." : "Conecta una wallet registrada como verificador de prueba."}{" "}
@@ -71,8 +61,7 @@ export default function VerificadorPage() {
         ) : next ? (
           <>
             <p style={{ margin: 0 }}>Hito pendiente: <strong>{MILESTONE_LABEL[next]}</strong>.
-              {mode === "demo" && ` Firmas como: ${ISSUERS[next]}.`}
-              {mode === "testnet" && allowed && " La cuenta conectada tiene permiso para firmarlo."}
+              {allowed && " La cuenta conectada tiene permiso para firmarlo."}
             </p>
             <label>Evidencia (se guarda solo su hash SHA-256)
               <input className="input" value={evidence} onChange={(e) => setEvidence(e.target.value)} placeholder={EVIDENCE_HINT[next]} />
