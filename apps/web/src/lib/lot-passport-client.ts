@@ -47,7 +47,7 @@ export async function createLotOnChain(
   passportRootHex: string,
   parcels: number,
   bags: number,
-  options?: { expectedCooperative: string; beforeSubmit: BeforeSubmit },
+  options?: { expectedCooperative: string; beforeSubmit?: BeforeSubmit },
 ) {
   const coop = await currentAddress();
   if (options && coop !== options.expectedCooperative) throw new Error("Conecta la cuenta de la cooperativa que abrió el lote.");

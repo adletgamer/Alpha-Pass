@@ -68,6 +68,14 @@ La emisión de la credencial en ACTA ocurre en el navegador con la wallet; el sc
 
 ## Operación compartida en Testnet
 
+`/probar` también permite elegir una práctica individual. **Cooperativa** usa una cuenta con XLM de Friendbot para evaluar parcelas en Whisp y firmar el anclaje en LotPassport. **Importador** usa su propia cuenta con USDC de prueba. La contraparte y los tres hitos vienen del lote de referencia indicado por `NEXT_PUBLIC_TESTNET_IMPORTER_LOT_ID`. Los plazos y estados de fondeo de esa práctica se conservan en el navegador por cuenta.
+
+El lote de referencia `2026-JAE-014-SOLO01` fue anclado y atestado en Stellar Testnet. La validación desplegó y fondeó el escrow `CAA66ALCFG7LJO2BBY2KD5L2GVWWO2MZWWRFHG5KDEOUG6LY5A6DK62W`, confirmó el bloqueo antes de la primera atestación y liberó los tres pagos. El abono total a la cooperativa fue de 149,55 USDC de prueba.
+
+Para preparar otra referencia, crea y fondea las identidades `alpha-cooperativa`, `alpha-importador` y `alpha-verificador` con `stellar keys generate <alias> --network testnet --fund --secure-store`. Usa el mismo directorio de configuración de Stellar CLI para las tres. Inicia una app local con los proveedores de Testnet y ejecuta `node --env-file=<archivo-local> apps/web/scripts/prepare-role-testnet.mjs <directorio-stellar-cli> <id-nuevo> <url-local>`. Define el nuevo ID en `NEXT_PUBLIC_TESTNET_IMPORTER_LOT_ID` cuando la prueba confirme el anclaje y las atestaciones.
+
+### Recorrido con un lote compartido
+
 1. Prepara un PostgreSQL de prueba, preferiblemente una rama aislada de Neon. En `apps/web`, configura `DATABASE_URL` en el servidor y `DATABASE_URL_UNPOOLED` para la migración si dispones de ambas conexiones. Ejecuta `npm run db:migrate`. Las operaciones de Testnet existentes en un navegador siguen siendo locales. Para usar los enlaces, abre un lote nuevo desde `/probar` antes de anclarlo.
 2. Conecta la cuenta de cooperativa. Pulsa **Abrir operación compartida** y guarda el enlace de cooperativa. Copia el enlace de importador y el del verificador para sus respectivos perfiles. El código de cada enlace se guarda como hash en el servidor y se retira de la barra de direcciones al abrirlo.
 3. Verifica las parcelas en Cooperativa. Usa la wallet Testnet con la que se creó `ACTA_API_KEY` para firmar la emisión y luego anclar el pasaporte. Puedes configurar su dirección pública en `NEXT_PUBLIC_ACTA_ISSUER_ADDRESS` para avisar antes de pedir firmas. Si cancelas el anclaje después de guardar la credencial, **Continuar anclaje del pasaporte** la reutiliza. Si una transacción quedó pendiente, actualiza el lote antes de continuar.

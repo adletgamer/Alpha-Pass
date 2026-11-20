@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useState } from "react";
-import type { AssetCode, Lot, Milestone } from "./domain";
+import type { AssetCode, EscrowState, Lot, Milestone } from "./domain";
 import { MILESTONES } from "./domain";
 import { canRelease, GATE_MESSAGE } from "./release-gate";
 import { initialLot, newTestnetLotId } from "./sample-data";
@@ -17,7 +17,7 @@ type Action =
   | { type: "load"; lot: Lot }
   | { type: "risk"; risks: Record<string, "sin_riesgo" | "alerta"> }
   | { type: "anchor"; root: string }
-  | { type: "fund"; asset: AssetCode; amount: number; contractId: string }
+  | { type: "fund"; asset: AssetCode; amount: number; contractId: string; funded?: boolean; pendingFund?: EscrowState["pendingFund"] }
   | { type: "attest"; milestone: Milestone; issuer: string; evidenceHash: string }
   | { type: "release"; milestone: Milestone };
 
@@ -38,7 +38,8 @@ function reducer(lot: Lot, a: Action): Lot {
           contractId: a.contractId,
           asset: a.asset,
           amount: a.amount,
-          funded: true,
+          funded: a.funded ?? true,
+          pendingFund: a.pendingFund,
           released: { acopio: false, embarque: false, llegada: false },
         },
       };
@@ -63,6 +64,7 @@ export function eligibleParcels(lot: Lot) {
 interface Ctx {
   mode: AlphaMode;
   preview: boolean;
+  practice?: "cooperativa" | "importador";
   lot: Lot;
   busy: boolean;
   log: string[];
@@ -104,11 +106,14 @@ interface LotProviderProps {
   initial?: Lot;
   /** Vista previa de solo lectura, sin persistencia. */
   preview?: boolean;
+  practice?: { role: "cooperativa" | "importador"; address: string; counterparty?: string };
 }
 
-export function LotProvider({ children, initial, preview = false }: LotProviderProps) {
+export function LotProvider({ children, initial, preview = false, practice }: LotProviderProps) {
   const [localLot, dispatch] = useReducer(reducer, undefined, () => initial ?? initialLot());
-  const shared = useSharedOperation(!preview && MODE === "testnet");
+  const shared = useSharedOperation(!preview && !practice && MODE === "testnet");
+  const storageKey = practice ? `${STORAGE_KEY}-${practice.role}-${practice.address}` : STORAGE_KEY;
+  const practiceRole = practice?.role;
   const lot = shared.view?.lot ?? localLot;
   const [busy, setBusy] = useState(false);
   const [hydrated, setHydrated] = useState(false);
@@ -118,18 +123,22 @@ export function LotProvider({ children, initial, preview = false }: LotProviderP
   useEffect(() => {
     if (preview || MODE !== "testnet") return;
     // Las versiones anteriores usaban la misma clave para ejemplos y Testnet.
-    const saved = readStoredLot(STORAGE_KEY) ?? readStoredLot("alpha-pass-demo-lot");
-    dispatch(saved ? { type: "load", lot: saved } : { type: "reset", id: newTestnetLotId() });
+    const saved = readStoredLot(storageKey) ?? (practiceRole ? null : readStoredLot("alpha-pass-demo-lot"));
+    if (practiceRole === "importador" && initial) {
+      dispatch({ type: "load", lot: { ...initial, escrow: saved?.id === initial.id ? saved.escrow : undefined } });
+    } else {
+      dispatch(saved ? { type: "load", lot: saved } : { type: "reset", id: newTestnetLotId() });
+    }
     setHydrated(true);
-  }, [preview]);
+  }, [preview, initial, practiceRole, storageKey]);
   useEffect(() => {
     if (preview || !hydrated) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(localLot));
+      localStorage.setItem(storageKey, JSON.stringify(localLot));
     } catch {
       /* sin persistencia */
     }
-  }, [localLot, preview, hydrated]);
+  }, [localLot, preview, hydrated, storageKey]);
 
   const run = useCallback(async <T,>(fn: () => Promise<T>): Promise<T> => {
     if (preview || MODE !== "testnet") throw new Error("Abre la prueba en Stellar Testnet para operar.");
@@ -153,6 +162,7 @@ export function LotProvider({ children, initial, preview = false }: LotProviderP
     return {
     mode: preview ? "demo" : MODE,
     preview,
+    practice: practiceRole,
     lot,
     busy,
     log,
@@ -197,7 +207,17 @@ export function LotProvider({ children, initial, preview = false }: LotProviderP
     anchorPassport: () => run(async () => {
       requireRole("cooperativa");
       const parcels = eligibleParcels(lot);
+      if (parcels.length === 0) throw new Error("Se necesita al menos una parcela apta para anclar el lote.");
       const root = await passportRoot(lot, parcels);
+      if (practice?.role === "cooperativa") {
+        const { createLotOnChain } = await import("./lot-passport-client");
+        const hash = await createLotOnChain(lot.id, root, parcels.length, parcels.reduce((sum, p) => sum + p.bags, 0), {
+          expectedCooperative: practice.address,
+        });
+        dispatch({ type: "anchor", root });
+        note(`Huella anclada en LotPassport · tx ${hash.slice(0, 12)}…`);
+        return;
+      }
       if (shared.view) {
         const current = await shared.refresh();
         if (!current || current.lot.passportRoot) return;
@@ -260,9 +280,23 @@ export function LotProvider({ children, initial, preview = false }: LotProviderP
         }
         return;
       }
-      const { contractId } = await providers.escrow.createAndFund({ lotId: lot.id, asset, amount });
-      dispatch({ type: "fund", asset, amount, contractId });
-      note(`Escrow fondeado con ${amount.toLocaleString("es-PE")} ${asset}`);
+      if (practice?.role === "importador" && practice.address === practice.counterparty) {
+        throw new Error("Conecta la wallet del importador. El lote de referencia ya tiene su propia cooperativa.");
+      }
+      const saved = practiceRole === "importador" ? lot.escrow : undefined;
+      if (saved?.funded) return;
+      const terms = { asset: saved?.asset ?? asset, amount: saved?.amount ?? amount };
+      const { contractId } = await providers.escrow.createAndFund({
+        lotId: lot.id, ...terms, expectedBuyer: practice?.address, savedContractId: saved?.contractId, pendingFund: saved?.pendingFund,
+        onDeployed: practiceRole === "importador"
+          ? (id) => dispatch({ type: "fund", ...terms, contractId: id, funded: false })
+          : undefined,
+        onFundSigned: practiceRole === "importador"
+          ? (id, pendingFund) => dispatch({ type: "fund", ...terms, contractId: id, funded: false, pendingFund })
+          : undefined,
+      });
+      dispatch({ type: "fund", ...terms, contractId });
+      note(`Escrow fondeado con ${terms.amount.toLocaleString("es-PE")} ${terms.asset}`);
     }),
     attest: (milestone, issuer, evidence) => run(async () => {
       requireRole("verificador");
@@ -294,9 +328,10 @@ export function LotProvider({ children, initial, preview = false }: LotProviderP
         return GATE_MESSAGE[gate.reason];
       }
       try {
-        if (shared.view?.progress.escrow) {
+        const buyer = shared.view?.progress.escrow?.buyer ?? practice?.address;
+        if (buyer) {
           const { currentAddress } = await import("./wallet");
-          if (await currentAddress() !== shared.view.progress.escrow.buyer) {
+          if (await currentAddress() !== buyer) {
             throw new Error("Conecta la cuenta del importador que fondeó el escrow.");
           }
         }
@@ -312,12 +347,12 @@ export function LotProvider({ children, initial, preview = false }: LotProviderP
       return null;
     }),
     reset: () => {
-      if (preview || MODE !== "testnet" || shared.access) return;
+      if (preview || MODE !== "testnet" || shared.access || practiceRole === "importador") return;
       dispatch({ type: "reset", id: newTestnetLotId() });
       setLog([]);
     },
     };
-  }, [lot, localLot, busy, log, run, note, preview, shared]);
+  }, [lot, localLot, busy, log, run, note, preview, shared, practice, practiceRole]);
 
   return <LotContext.Provider value={value}>{children}</LotContext.Provider>;
 }

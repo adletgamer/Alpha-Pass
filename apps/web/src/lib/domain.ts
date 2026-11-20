@@ -49,6 +49,7 @@ export interface EscrowState {
   asset: AssetCode;
   amount: number;
   funded: boolean;
+  pendingFund?: { hash: string; expires: number };
   released: Record<Milestone, boolean>;
 }
 

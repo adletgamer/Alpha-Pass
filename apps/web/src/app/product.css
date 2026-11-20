@@ -92,6 +92,15 @@ nav.site-nav a:focus-visible { outline: 3px solid var(--ap-cherry-600); outline-
 .testnet-steps .mono { flex: none; font-size: .76rem; }
 .testnet-layout { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 20px; align-items: start; }
 .testnet-layout .card { gap: 16px; }
+.testnet-role-picker { min-width: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 10px; margin: 0; padding: 0; border: 0; }
+.testnet-role-picker legend { margin-bottom: 8px; font-size: .86rem; font-weight: 800; color: var(--ap-green-900); }
+.testnet-role-choice { display: flex; flex-direction: row; align-items: flex-start; gap: 10px; padding: 13px 15px; border-radius: var(--ap-radius-md); background: var(--ap-paper); border: 1px solid var(--ap-line); cursor: pointer; }
+.testnet-role-choice:has(input:checked) { background: var(--ap-green-100); border-color: var(--ap-green-600); }
+.testnet-role-choice input { margin: 4px 0 0; accent-color: var(--ap-green-800); }
+.testnet-role-choice span { display: grid; gap: 4px; }
+.testnet-role-choice small { color: var(--ap-ink-muted); font-size: .79rem; font-weight: 500; }
+.testnet-team summary { cursor: pointer; font-weight: 800; color: var(--ap-green-900); }
+.testnet-team[open] > :not(summary) { margin-top: 12px; }
 .testnet-account-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
 .testnet-account-list li { display: grid; gap: 4px; border-top: 1px solid var(--ap-line); padding-top: 12px; }
 .testnet-requirements { display: grid; gap: 10px; list-style: none; margin: 0; padding: 0; }
@@ -100,9 +109,6 @@ nav.site-nav a:focus-visible { outline: 3px solid var(--ap-cherry-600); outline-
 .testnet-requirements li p { margin: 4px 0 0; }
 .testnet-ready { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; border-radius: var(--ap-radius-md); background: var(--ap-green-100); padding: 14px; color: var(--ap-green-900); }
 .testnet-ready p { margin: 0; max-width: 46ch; }
-.testnet-trail { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
-.testnet-trail li { display: grid; align-content: start; gap: 5px; border-top: 2px solid #b4cbb9; padding-top: 10px; color: var(--ap-ink-muted); font-size: .88rem; }
-.testnet-trail strong { color: var(--ap-green-900); }
 
 .product-milestones { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
 .product-milestone { min-width: 0; display: flex; flex-direction: column; gap: 10px; border: 1px solid var(--ap-line); border-radius: var(--ap-radius-md); background: var(--ap-paper); padding: clamp(12px, 2vw, 18px); }
@@ -118,7 +124,6 @@ nav.site-nav a:focus-visible { outline: 3px solid var(--ap-cherry-600); outline-
 }
 @media (max-width: 760px) {
   .testnet-layout { grid-template-columns: 1fr; gap: 16px; }
-  .testnet-trail { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 520px) {
   header.site .inner { padding: 12px 16px; gap: 8px; }
@@ -128,6 +133,5 @@ nav.site-nav a:focus-visible { outline: 3px solid var(--ap-cherry-600); outline-
   .product-shell .card { padding: 16px; }
   .product-metrics dt { font-size: .72rem; }
   .testnet-steps li { flex-direction: column; align-items: start; gap: 3px; font-size: .75rem; }
-  .testnet-trail { gap: 14px 10px; }
   .testnet-requirements .btn { width: 100%; }
 }
