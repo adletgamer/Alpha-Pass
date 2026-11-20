@@ -5,6 +5,7 @@ import Link from "next/link";
 import { eligibleParcels, useLot } from "@/lib/store";
 import { releasedAmount } from "@/lib/release-gate";
 import { MILESTONES, MILESTONE_LABEL, MILESTONE_SHARE } from "@/lib/domain";
+import { ProductHero, ProductMetrics } from "@/components/ProductDisplay";
 
 const RISK_LABEL = { sin_riesgo: "Sin riesgo", alerta: "Alerta: revisar", pendiente: "Sin verificar" } as const;
 const RISK_CLASS = { sin_riesgo: "pill pill-ok", alerta: "pill pill-alert", pendiente: "pill pill-wait" } as const;
@@ -22,24 +23,25 @@ export default function CooperativaPage() {
   const eligible = eligibleParcels(lot);
   const verified = lot.parcels.every((p) => p.risk !== "pendiente");
   const bags = eligible.reduce((s, p) => s + p.bags, 0);
+  const excluded = lot.parcels.filter((p) => p.risk === "alerta").length;
+  const evaluated = lot.parcels.filter((p) => p.risk !== "pendiente").length;
   const released = releasedAmount(lot);
 
   return (
-    <main className="container">
-      <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-end" }}>
-        <div>
-          <div className="muted">{lot.cooperative} · {lot.product}</div>
-          <h1 className="mono">{lot.id}</h1>
-          <div className="muted mono">
-            {verified ? `${bags} sacos · ${eligible.length} parcelas aptas` : `${lot.parcels.length} parcelas por verificar`} · comprador: {lot.buyer}
-          </div>
-        </div>
-        {!preview && !operation.active && <button className="btn btn-ghost" type="button" disabled={busy} onClick={reset}>Iniciar otro lote</button>}
-      </div>
+    <main className="container product-shell">
+      <ProductHero label="Cooperativa" title={lot.id} identifier example={preview}
+        description={`${lot.cooperative} · ${lot.product}`}
+        actions={!preview && !operation.active && <button className="btn btn-ghost" type="button" disabled={busy} onClick={reset}>Iniciar otro lote</button>}
+      />
+      <ProductMetrics label="Composición del lote" items={[
+        { label: "Parcelas evaluadas", value: `${evaluated}/${lot.parcels.length}` },
+        { label: "Parcelas aptas", value: evaluated ? eligible.length : "—", note: excluded ? `${excluded} con alerta` : undefined },
+        { label: "Sacos incluidos", value: evaluated ? bags : "—" },
+      ]} />
 
       <div className="row">
         <section className="card grow" aria-labelledby="parcelas">
-          <div className="row" style={{ justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+          <div className="product-card-heading">
             <h2 id="parcelas" tabIndex={-1}>1. Parcelas del lote</h2>
             {!preview && <button className="btn" type="button" disabled={busy || verified || !canEdit} onClick={() => act(verifyParcels)}>
               {verified ? "Parcelas verificadas" : "Verificar con Whisp (FAO)"}
@@ -73,8 +75,8 @@ export default function CooperativaPage() {
             <h2 id="pasaporte">2. Pasaporte</h2>
             {lot.passportRoot ? (
               <>
-                <span className="pill pill-ok">{mode === "testnet" ? "Anclado en LotPassport" : "Pasaporte de ejemplo"}</span>
-                <div className="mono muted" style={{ wordBreak: "break-all", fontSize: "0.8rem" }}>Raíz {lot.passportRoot}</div>
+                <span className="pill pill-ok product-status">{mode === "testnet" ? "Anclado en LotPassport" : "Pasaporte de ejemplo"}</span>
+                <div className="product-address"><strong>Raíz Merkle</strong><code className="mono">{lot.passportRoot}</code></div>
               </>
             ) : (
               <>
@@ -92,11 +94,12 @@ export default function CooperativaPage() {
             )}
           </section>
 
-          <section className="card card-dark" aria-labelledby="cobro">
+          <section className="card card-dark product-settlement" aria-labelledby="cobro">
             <h2 id="cobro">3. Cobro</h2>
             {lot.escrow ? (
               <>
-                <div className="stat-value mono">{released.toLocaleString("es-PE")} <span style={{ fontSize: "1rem", fontWeight: 500 }}>de {lot.escrow.amount.toLocaleString("es-PE")} {lot.escrow.asset}</span></div>
+                <div className="stat-value mono">{released.toLocaleString("es-PE")} <span className="product-unit">de {lot.escrow.amount.toLocaleString("es-PE")} {lot.escrow.asset}</span></div>
+                <p>Importador · {lot.buyer}</p>
                 <div className="bar" aria-hidden="true"><div style={{ width: `${(released / lot.escrow.amount) * 100}%` }} /></div>
                 {MILESTONES.map((m) => (
                   <div key={m} className="row" style={{ justifyContent: "space-between", gap: 8 }}>

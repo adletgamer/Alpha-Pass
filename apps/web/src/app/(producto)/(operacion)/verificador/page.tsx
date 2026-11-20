@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useLot } from "@/lib/store";
 import { MILESTONES, MILESTONE_LABEL, type Milestone } from "@/lib/domain";
 import { callTestnet, useTestnetWallet } from "@/components/TestnetWallet";
+import { ProductHero, ProductMetrics } from "@/components/ProductDisplay";
 
 const EVIDENCE_HINT: Record<Milestone, string> = {
   acopio: "Ej.: guía de recepción 0001-2345, 60 sacos",
@@ -42,11 +43,13 @@ export default function VerificadorPage() {
   }
 
   return (
-    <main className="container">
-      <div>
-        <div className="muted">Verificador en Stellar Testnet</div>
-        <h1 className="mono">Lote {lot.id}</h1>
-      </div>
+    <main className="container product-shell">
+      <ProductHero label="Verificador" title={lot.id} identifier description="Firma la evidencia de cada hito. LotPassport registra su huella y la cuenta que la atestó." />
+      <ProductMetrics label="Estado de atestaciones" items={[
+        { label: "Hitos atestados", value: `${lot.attestations.length}/${MILESTONES.length}` },
+        { label: "Siguiente hito", value: next ? MILESTONE_LABEL[next] : "Completado" },
+        { label: "Permisos de la wallet", value: wallet.status ? `${wallet.status.verifierFor.length}/${MILESTONES.length}` : "—" },
+      ]} />
       <section className="card" aria-labelledby="firmar">
         <h2 id="firmar">Firmar el siguiente hito</h2>
         {next && !allowed && (

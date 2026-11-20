@@ -8,6 +8,7 @@ import { MILESTONES, MILESTONE_LABEL, MILESTONE_SHARE, type AssetCode, type Mile
 import { ASSETS } from "@/lib/adapters";
 import { TESTNET_ESCROW_AMOUNT } from "@/lib/sample-data";
 import { LotEvidenceDownload } from "@/components/LotEvidenceDownload";
+import { ProductHero, ProductMetrics } from "@/components/ProductDisplay";
 
 export default function ImportadorPage() {
   const { lot, preview, busy, operation, fundEscrow, release } = useLot();
@@ -37,17 +38,18 @@ export default function ImportadorPage() {
   }
 
   return (
-    <main className="container">
-      <div>
-        <div className="muted">Compra a {lot.cooperative} · {lot.product}</div>
-        <h1 className="mono">Lote {lot.id}</h1>
-      </div>
-
-      <div className="stats">
-        <div className="card"><span className="muted">En escrow</span><span className="stat-value mono">{escrow ? `${escrow.amount.toLocaleString("es-PE")} ${escrow.asset}` : "Sin fondear"}</span></div>
-        <div className="card"><span className="muted">Liberado contra prueba</span><span className="stat-value mono" style={{ color: "var(--ap-green-800)" }}>{releasedAmount(lot).toLocaleString("es-PE")} {escrow?.asset ?? ""}</span></div>
-        <div className="card"><span className="muted">Pasaporte</span><span className="stat-value">{lot.passportRoot ? `${eligibleParcels(lot).length} parcelas` : "Sin anclar"}</span></div>
-      </div>
+    <main className="container product-shell">
+      <ProductHero label="Importador" title={lot.id} identifier example={preview}
+        description={`Compra a ${lot.cooperative} · ${lot.product}`}
+      />
+      <ProductMetrics label="Estado del lote y del pago" items={[
+        { label: "Monto del escrow", value: escrow ? <>{escrow.amount.toLocaleString("es-PE")} <span className="product-unit">{escrow.asset}</span></> : "—",
+          note: escrow?.funded ? "Fondeado" : "Fondeo pendiente" },
+        { label: "Liberado contra prueba", value: <>{releasedAmount(lot).toLocaleString("es-PE")} <span className="product-unit">{escrow?.asset}</span></>,
+          note: escrow?.funded ? "Antes de comisiones" : undefined },
+        { label: "Pasaporte", value: lot.passportRoot ? "Anclado" : "Pendiente",
+          note: lot.passportRoot ? `${parcels.length} parcelas aptas` : undefined },
+      ]} />
 
       {!preview && !escrow?.funded && (
         <section className="card" aria-labelledby="fondear">
@@ -74,38 +76,37 @@ export default function ImportadorPage() {
 
       <section className="card" aria-labelledby="hitos">
         <h2 id="hitos" tabIndex={-1}>Hitos de pago</h2>
-        {MILESTONES.map((m, i) => {
+        <ol className="product-milestones">
+          {MILESTONES.map((m) => {
           const done = escrow?.released[m];
           const gate = canRelease(lot, m);
           const att = lot.attestations.find((a) => a.milestone === m);
+          const state = done ? "released" : gate.ok ? "ready" : "held";
           return (
-            <div key={m} className="milestone">
-              <div className={`step ${done ? "step-done" : gate.ok ? "step-now" : ""}`}>{i + 1}</div>
-              <div style={{ flex: "1 1 280px", display: "flex", flexDirection: "column", gap: 4 }}>
-                <strong>{MILESTONE_LABEL[m]} · {MILESTONE_SHARE[m]}%{escrow ? ` · ${milestoneAmount(escrow.amount, m).toLocaleString("es-PE")} ${escrow.asset}` : ""}</strong>
-                <span className="muted" style={{ fontSize: "0.85rem" }}>
-                  {att ? <>Credencial de {att.issuer} · <span className="mono">{att.evidenceHash.slice(0, 12)}…</span></> : "Sin credencial firmada"}
-                </span>
-                {errors[m] && <span className="error" role="alert">{errors[m]}</span>}
+            <li key={m} className="product-milestone" data-state={state}>
+              <div className="product-card-heading">
+                <h3>{MILESTONE_LABEL[m]}</h3>
+                <span className={`pill ${done || gate.ok ? "pill-ok" : "pill-wait"}`}>{done ? "Liberado" : gate.ok ? "Listo para liberar" : "Retenido"}</span>
               </div>
-              {done ? (
-                <span className="pill pill-ok">Liberado</span>
-              ) : preview ? (
-                <span className="pill pill-wait">{gate.ok ? "Listo para liberar" : "Retenido"}</span>
-              ) : (
+              <strong className="mono product-milestone-share">{MILESTONE_SHARE[m]}%{escrow ? ` · ${milestoneAmount(escrow.amount, m).toLocaleString("es-PE")} ${escrow.asset}` : ""}</strong>
+              {att && <p className="muted">Atestación de {att.issuer} · <code className="mono">{att.evidenceHash.slice(0, 12)}…</code></p>}
+              {!done && !gate.ok && <p id={`pago-${m}-estado`} className="muted">{GATE_MESSAGE[gate.reason]}</p>}
+              {errors[m] && <p className="error" role="alert">{errors[m]}</p>}
+              {!preview && !done && (
                 <button
                   type="button"
                   className="btn"
                   disabled={busy || !escrow?.funded || !canEdit}
                   onClick={() => tryRelease(m)}
-                  title={gate.ok ? "" : GATE_MESSAGE[gate.reason]}
+                  aria-describedby={gate.ok ? undefined : `pago-${m}-estado`}
                 >
                   Liberar hito
                 </button>
               )}
-            </div>
+            </li>
           );
-        })}
+          })}
+        </ol>
       </section>
 
       {!preview && (

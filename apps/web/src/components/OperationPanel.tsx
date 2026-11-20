@@ -35,12 +35,15 @@ export function OperationPanel() {
 
   return (
     <section className="card" aria-labelledby="operation-title">
-      <h2 id="operation-title">Operación compartida</h2>
+      <div className="product-card-heading">
+        <h2 id="operation-title">Operación compartida</h2>
+        {view && <span className="pill pill-ok">Acceso de {view.role}</span>}
+      </div>
       {view ? (
         <>
-          <p style={{ margin: 0 }}>Lote <span className="mono">{lot.id}</span> · Acceso de <strong>{view.role}</strong>.</p>
-          <p className="muted" style={{ margin: 0 }}>El pasaporte y los hitos se comprueban en Stellar. Cada enlace da acceso a las acciones de su rol.</p>
-          <div className="row">
+          <div className="product-address"><strong>Lote</strong><code className="mono">{lot.id}</code></div>
+          <p className="product-subtitle">Cada enlace permite entrar al lote y operar con los permisos de su rol.</p>
+          <div className="product-inline-actions">
             {OPERATION_ROLES.map((role) => {
               const path = operation.invite(role);
               return path && <button key={role} type="button" className="btn btn-ghost" disabled={working} onClick={() => copy(path)}>Copiar enlace de {role}</button>;
@@ -58,7 +61,7 @@ export function OperationPanel() {
           ? "Consultando el lote compartido."
           : "La cooperativa puede abrir un lote compartido antes de anclar el pasaporte y enviar enlaces al importador y al verificador."}</p>
       )}
-      <div className="row">
+      <div className="product-inline-actions">
         {(!operation.active || (!view && operation.error && canCreate)) && (
           <button type="button" className="btn" disabled={working || busy || !canCreate} onClick={() => perform(operation.create)}>
             Abrir operación compartida

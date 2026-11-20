@@ -23,12 +23,12 @@ export function SiteHeader() {
   return (
     <>
       {MODE === "testnet" && (
-        <div className="demo-banner">Stellar Testnet: transacciones reales de prueba, sin dinero real.</div>
+        <div className="site-network"><strong>Stellar Testnet</strong><span>Transacciones de prueba</span></div>
       )}
       <header className="site">
         <div className="inner">
           <Link href="/" aria-label="Alpha Pass, inicio" style={{ textDecoration: "none" }}>
-            <Logo />
+            <Logo size={32} />
           </Link>
           <nav className="site-nav" aria-label="Vistas por rol">
             {LINKS.map((l) => (
