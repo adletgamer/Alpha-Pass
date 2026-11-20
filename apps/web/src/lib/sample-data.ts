@@ -29,6 +29,7 @@ export const RECORDED_RISK: Record<string, "sin_riesgo" | "alerta"> = {
 
 export const SAMPLE_LOT_ID = "2026-JAE-014";
 export const PUBLIC_TESTNET_LOT_PATH = "/lote/2026-JAE-014-E2EE81AD5CA";
+export const TESTNET_IMPORTER_LOT_ID = process.env.NEXT_PUBLIC_TESTNET_IMPORTER_LOT_ID ?? "2026-JAE-014-SOLO01";
 
 /** En Testnet cada prueba ancla un lote nuevo: LotPassport no admite IDs repetidos. */
 export function newTestnetLotId() {

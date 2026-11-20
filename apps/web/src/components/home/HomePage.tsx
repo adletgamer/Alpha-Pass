@@ -33,7 +33,7 @@ export function HomePage({ locale }: { locale: HomeLocale }) {
             {copy.heroLead}
           </p>
           <div className="hero-ctas">
-            <Link href="/probar" className="btn btn-lg">{copy.testnetCta}</Link>
+            <Link href="/testnet" className="btn btn-lg">{copy.testnetCta}</Link>
             <Link href={PUBLIC_TESTNET_LOT_PATH} className="btn btn-ghost btn-lg">{copy.publicPassport}</Link>
           </div>
           <p className="demo-note mono">{copy.demoNote}</p>
@@ -120,7 +120,7 @@ export function HomePage({ locale }: { locale: HomeLocale }) {
               <ul className="checks">
                 {copy.coopChecks.map((item) => <li key={item}>{item}</li>)}
               </ul>
-              <Link href="/probar" className="btn btn-ghost">{copy.coopLink}</Link>
+              <Link href="/testnet" className="btn btn-ghost">{copy.coopLink}</Link>
             </article>
             <article id="importadores" className="audience-col" aria-labelledby="imp-title">
               <p className="eyebrow">{copy.buyerEyebrow}</p>
@@ -128,7 +128,7 @@ export function HomePage({ locale }: { locale: HomeLocale }) {
               <ul className="checks">
                 {copy.buyerChecks.map((item) => <li key={item}>{item}</li>)}
               </ul>
-              <Link href="/probar?rol=importador" className="btn btn-ghost">{copy.buyerLink}</Link>
+              <Link href="/testnet?rol=importador" className="btn btn-ghost">{copy.buyerLink}</Link>
             </article>
           </div>
           <p className="wrap disclaimer">
@@ -142,7 +142,7 @@ export function HomePage({ locale }: { locale: HomeLocale }) {
             <h2 id="final-title" className="section-title">{copy.finalTitle}</h2>
             <p className="section-lead">{copy.finalLead}</p>
             <div className="hero-ctas">
-              <Link href="/probar" className="btn btn-light btn-lg">{copy.testnetCta}</Link>
+              <Link href="/testnet" className="btn btn-light btn-lg">{copy.testnetCta}</Link>
               <a href="https://github.com/adletgamer/Alpha-Pass" className="btn btn-outline-light btn-lg" rel="noopener">{copy.github}</a>
             </div>
           </div>

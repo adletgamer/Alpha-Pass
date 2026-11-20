@@ -6,24 +6,28 @@ import { useSearchParams } from "next/navigation";
 import { MODE } from "@/lib/adapters";
 import { useLot } from "@/lib/store";
 import { MILESTONE_LABEL, type Milestone } from "@/lib/domain";
-import { TESTNET_ESCROW_AMOUNT } from "@/lib/sample-data";
+import { TESTNET_ESCROW_AMOUNT, TESTNET_IMPORTER_LOT_ID } from "@/lib/sample-data";
 import { callTestnet, useTestnetWallet } from "@/components/TestnetWallet";
 import { OperationPanel } from "@/components/OperationPanel";
 import { ProductHero, ProductMetrics } from "@/components/ProductDisplay";
 
 const ROLES = {
-  cooperativa: { label: "Cooperativa · cuenta A", href: "/cooperativa", next: "Verifica las parcelas y ancla el pasaporte con la wallet vinculada a ACTA." },
-  importador: { label: "Importador · cuenta B", href: "/importador", next: "Crear y fondear el escrow después de que la cooperativa ancle el pasaporte." },
-  verificador: { label: "Verificador", href: "/verificador", next: "Firmar acopio, embarque y llegada en orden. Después vuelve a Importador para liberar el pago de cada hito." },
+  cooperativa: { label: "Cooperativa", href: "/testnet/cooperativa", next: "Evalúa las parcelas con Whisp y firma su anclaje en LotPassport." },
+  importador: { label: "Importador", href: "/testnet/importador", next: "Fondea un escrow y libera pagos sobre un lote con atestaciones confirmadas." },
+  verificador: { label: "Verificador de equipo", href: "/verificador", next: "Firma acopio, embarque y llegada en la operación compartida." },
 } as const;
 
 const fmt = (v: string) => Number(v).toLocaleString("es-PE", { maximumFractionDigits: 2 });
 
-export default function ProbarPage() {
-  return <Suspense fallback={<main className="container product-shell"><ProductHero label="Acceso al producto" title="Prueba Alpha Pass con tu wallet" /></main>}><TestnetGuide /></Suspense>;
+export default function TestnetPage() {
+  return (
+    <Suspense fallback={<main className="container product-shell"><ProductHero label="Entorno de integración" title="Alpha Pass en Stellar Testnet" /></main>}>
+      <TestnetWorkspace />
+    </Suspense>
+  );
 }
 
-function TestnetGuide() {
+function TestnetWorkspace() {
   const { lot } = useLot();
   const { address, status, connecting, reading, error: walletError, connect, refresh } = useTestnetWallet();
   const requestedRole = useSearchParams().get("rol");
@@ -83,15 +87,23 @@ function TestnetGuide() {
   const accountExists = Boolean(status?.exists);
   const buyerReady = Boolean(status?.hasUsdcTrustline && Number(status.usdc) >= TESTNET_ESCROW_AMOUNT);
   const verifierReady = status?.verifierFor.length === 3;
-  const roleReady = accountExists && (
-    role === "cooperativa" ? status?.hasUsdcTrustline : role === "importador" ? buyerReady : verifierReady
-  );
+  const roleReady = accountExists && (role === "cooperativa" || (role === "importador" ? buyerReady : verifierReady));
   const waiting = busy !== null || connecting || reading;
   const activeStep = !address ? 0 : roleReady ? 2 : 1;
 
   return (
     <main className="container product-shell">
-      <ProductHero label="Acceso al producto" title="Prueba Alpha Pass con tu wallet" description="Prepara una cuenta para operar el lote. Los fondos y las transacciones son de prueba." />
+      <ProductHero label="Entorno de integración" title="Alpha Pass en Stellar Testnet" description="Selecciona Cooperativa o Importador y conecta tu wallet para validar transacciones en Stellar Testnet." />
+
+      <fieldset className="testnet-role-picker">
+        <legend>Rol de operación</legend>
+        {(["cooperativa", "importador", ...(role === "verificador" ? ["verificador"] : [])] as (keyof typeof ROLES)[]).map((value) => (
+          <label key={value} className="testnet-role-choice">
+            <input type="radio" name="testnet-role" checked={role === value} disabled={waiting} onChange={() => { setRole(value); setMsg(null); }} />
+            <span><strong>{ROLES[value].label}</strong><small>{ROLES[value].next}</small></span>
+          </label>
+        ))}
+      </fieldset>
 
       <ol className="testnet-steps" aria-label="Progreso de preparación">
         {["Conectar wallet", "Preparar cuenta", "Entrar a la operación"].map((label, index) => (
@@ -104,13 +116,13 @@ function TestnetGuide() {
       <div className="testnet-layout">
         <section className="card" aria-labelledby="preparar">
           <div className="product-card-heading">
-            <h2 id="preparar">{address ? "Preparar esta wallet" : "Conecta tu wallet para comenzar"}</h2>
+            <h2 id="preparar">{address ? `Preparar wallet de ${ROLES[role].label.toLowerCase()}` : "Conexión de wallet"}</h2>
             <span className={`pill ${address ? "pill-ok" : "pill-wait"}`}>{address ? "Conectada" : "Pendiente de conexión"}</span>
           </div>
           {address ? (
             <div className="product-address"><strong>Cuenta activa</strong><code className="mono">{address}</code></div>
           ) : (
-            <p className="product-subtitle">Elige Freighter u otra wallet de Stellar. Usarás tu cuenta para confirmar las firmas del flujo de prueba.</p>
+            <p className="product-subtitle">Conecta Freighter u otra wallet de Stellar para firmar las transacciones de tu rol.</p>
           )}
           <div>
             <button className={address ? "btn btn-ghost" : "btn"} type="button" disabled={waiting} onClick={() => { setMsg(null); void connect(); }}>
@@ -128,11 +140,6 @@ function TestnetGuide() {
           )}
           {address && (
             <>
-              <label>Rol que quieres preparar
-                <select value={role} onChange={(event) => { setRole(event.target.value as keyof typeof ROLES); setMsg(null); }}>
-                  {Object.entries(ROLES).map(([value, option]) => <option key={value} value={value}>{option.label}</option>)}
-                </select>
-              </label>
               <ul className="testnet-requirements">
                 <li>
                   <div><strong>XLM para comisiones</strong><p>Friendbot fondea la cuenta de prueba.</p></div>
@@ -140,14 +147,6 @@ function TestnetGuide() {
                     {accountExists ? "Cuenta fondeada" : busy === "fund" ? "Fondeando…" : "Pedir XLM"}
                   </button>
                 </li>
-                {role === "cooperativa" && (
-                  <li>
-                    <div><strong>Recepción en USDC</strong><p>Firma la línea de confianza de Circle para recibir los pagos.</p></div>
-                    <button className="btn" type="button" disabled={!accountExists || waiting || status?.hasUsdcTrustline} onClick={() => prepareUsdc("trustline")}>
-                      {status?.hasUsdcTrustline ? "Recepción habilitada" : busy === "trustline" ? "Esperando tu firma…" : "Habilitar recepción de USDC"}
-                    </button>
-                  </li>
-                )}
                 {role === "importador" && (
                   <li>
                     <div><strong>Saldo para fondear el escrow</strong><p>Necesitas {TESTNET_ESCROW_AMOUNT} USDC de prueba. La firma cambia XLM de prueba por 200 USDC.</p></div>
@@ -172,34 +171,47 @@ function TestnetGuide() {
           {roleReady && (
             <div className="testnet-ready">
               <p><strong>Cuenta preparada.</strong> {ROLES[role].next}</p>
-              <Link className="btn" href={ROLES[role].href}>Continuar como {role}</Link>
+              <Link className="btn" href={ROLES[role].href}>Entrar como {ROLES[role].label}</Link>
             </div>
           )}
         </section>
 
-        <aside className="card" aria-labelledby="dos-cuentas">
-          <h2 id="dos-cuentas">Dos cuentas, una operación</h2>
+        <aside className="card" aria-labelledby="alcance-validacion">
+          <h2 id="alcance-validacion">Alcance de la validación</h2>
           <ul className="testnet-account-list">
-            <li><strong>Cuenta A · Cooperativa</strong><span className="muted">Ancla el pasaporte y recibe los pagos.</span></li>
-            <li><strong>Cuenta B · Importador</strong><span className="muted">Deposita los fondos y solicita cada liberación.</span></li>
+            {role === "cooperativa" ? (
+              <>
+                <li><strong>Evaluación en Whisp</strong><span className="muted">Revisa el riesgo de las parcelas del lote de prueba.</span></li>
+                <li><strong>Pasaporte en Stellar</strong><span className="muted">Firma la raíz Merkle y consulta el registro público.</span></li>
+              </>
+            ) : role === "importador" ? (
+              <>
+                <li><strong>Contraparte registrada</strong><span className="muted">El lote de referencia ya tiene cooperativa y tres atestaciones en LotPassport.</span></li>
+                <li><strong>Escrow en USDC de prueba</strong><span className="muted">Firma el fondeo y comprueba las liberaciones por hito.</span><Link href={`/lote/${TESTNET_IMPORTER_LOT_ID}`}>Ver lote de referencia</Link></li>
+              </>
+            ) : (
+              <li><strong>Atestaciones en LotPassport</strong><span className="muted">Abre el enlace del verificador de una operación compartida.</span></li>
+            )}
           </ul>
-          <p className="product-subtitle">Puedes registrar una de las cuentas como verificador. Para cambiar de rol, selecciona la otra cuenta en tu wallet y vuelve a conectar.</p>
         </aside>
       </div>
 
-      {address && <OperationPanel />}
-      <section className="card" aria-labelledby="recorrido">
-        <div className="product-card-heading">
-          <h2 id="recorrido">Del origen al pago</h2>
+      <details className="card testnet-team">
+        <summary>Operación compartida</summary>
+        <p className="product-subtitle">Para trabajar sobre el mismo lote, la cooperativa y el importador usan sus propias cuentas. La emisión ACTA requiere la wallet vinculada a la clave del entorno.</p>
+        {address && <>
+          <OperationPanel />
+          <div className="product-inline-actions">
+            <Link href="/cooperativa">Vista de cooperativa</Link>
+            <Link href="/importador">Vista de importador</Link>
+            <button className="btn btn-ghost" type="button" disabled={waiting} onClick={() => { setRole("verificador"); setMsg(null); }}>Preparar verificador</button>
+            <button className="btn btn-ghost" type="button" disabled={!accountExists || waiting || status?.hasUsdcTrustline} onClick={() => prepareUsdc("trustline")}>
+              {status?.hasUsdcTrustline ? "Recepción de USDC habilitada" : "Habilitar recepción de USDC"}
+            </button>
+          </div>
           {lot.passportRoot && <Link href={`/lote/${lot.id}`}>Ver pasaporte público</Link>}
-        </div>
-        <ol className="testnet-trail">
-          <li><strong>Parcelas</strong><span>La cooperativa consulta el riesgo satelital en Whisp.</span></li>
-          <li><strong>Pasaporte</strong><span>La wallet firma la credencial ACTA y el anclaje en LotPassport.</span></li>
-          <li><strong>Hitos</strong><span>El verificador atesta acopio, embarque y llegada.</span></li>
-          <li><strong>Pago</strong><span>Alpha Pass comprueba la atestación y solicita la liberación en Trustless Work.</span></li>
-        </ol>
-      </section>
+        </>}
+      </details>
     </main>
   );
 }

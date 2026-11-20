@@ -2,7 +2,7 @@
 // Whisp y Trustless Work vía rutas del servidor, ACTA por proxy y LotPassport
 // firmado por la wallet del usuario en Stellar Testnet.
 
-import type { AssetCode, Lot, Milestone, Parcel } from "./domain";
+import type { AssetCode, EscrowState, Lot, Milestone, Parcel } from "./domain";
 
 export type AlphaMode = "demo" | "testnet";
 export const MODE: AlphaMode =
@@ -16,7 +16,16 @@ export interface Providers {
     attest(lotId: string, milestone: Milestone, evidenceHashHex: string): Promise<{ note: string; txHash?: string }>;
   };
   escrow: {
-    createAndFund(input: { lotId: string; asset: AssetCode; amount: number }): Promise<{ contractId: string }>;
+    createAndFund(input: {
+      lotId: string;
+      asset: AssetCode;
+      amount: number;
+      expectedBuyer?: string;
+      savedContractId?: string;
+      pendingFund?: EscrowState["pendingFund"];
+      onDeployed?: (contractId: string) => void;
+      onFundSigned?: (contractId: string, pending: NonNullable<EscrowState["pendingFund"]>) => void;
+    }): Promise<{ contractId: string }>;
     release(input: { contractId: string; lotId: string; milestone: Milestone; access?: string }): Promise<{ note: string }>;
   };
 }
@@ -61,19 +70,41 @@ export const providers: Providers = {
     },
   },
   escrow: {
-    async createAndFund({ lotId, asset, amount }) {
-      const { currentAddress, signXdr } = await import("./wallet");
+    async createAndFund({ lotId, asset, amount, expectedBuyer, savedContractId, pendingFund, onDeployed, onFundSigned }) {
+      const { currentAddress, NETWORK_PASSPHRASE, signXdr } = await import("./wallet");
       const signer = await currentAddress();
-      const deploy = await api<{ unsignedXdr: string; contractId?: string }>("/api/escrow", {
-        action: "deploy", signer, lotId, asset, amount,
-      });
-      const deployed = await api<{ contractId?: string }>("/api/escrow", {
-        action: "submit", signedXdr: await signXdr(deploy.unsignedXdr),
-      });
-      const contractId = deployed.contractId ?? deploy.contractId;
-      if (!contractId) throw new Error("Trustless Work no devolvió el contrato del escrow.");
+      if (expectedBuyer && signer !== expectedBuyer) throw new Error("Vuelve a conectar la cuenta del importador.");
+      let contractId = savedContractId;
+      if (contractId && pendingFund) {
+        const { rpc } = await import("@stellar/stellar-sdk");
+        const server = new rpc.Server(process.env.NEXT_PUBLIC_SOROBAN_RPC_URL ?? "https://soroban-testnet.stellar.org");
+        const receipt = await server.getTransaction(pendingFund.hash);
+        if (receipt.status === rpc.Api.GetTransactionStatus.SUCCESS) return { contractId };
+        if (receipt.status !== rpc.Api.GetTransactionStatus.FAILED &&
+          (!pendingFund.expires || Date.now() / 1000 <= pendingFund.expires + 60)) {
+          throw new Error("El fondeo anterior aún puede confirmarse. Espera un momento y vuelve a consultar con «Continuar fondeo».");
+        }
+      }
+      if (!contractId) {
+        const deploy = await api<{ unsignedXdr: string; contractId?: string }>("/api/escrow", {
+          action: "deploy", signer, lotId, asset, amount,
+        });
+        const deployed = await api<{ contractId?: string }>("/api/escrow", {
+          action: "submit", signedXdr: await signXdr(deploy.unsignedXdr, { expectedAddress: signer }),
+        });
+        contractId = deployed.contractId ?? deploy.contractId;
+        if (!contractId) throw new Error("Trustless Work no devolvió el contrato del escrow.");
+        onDeployed?.(contractId);
+      }
       const fund = await api<{ unsignedXdr: string }>("/api/escrow", { action: "fund", contractId, signer, amount });
-      await api("/api/escrow", { action: "submit", signedXdr: await signXdr(fund.unsignedXdr) });
+      const signedXdr = await signXdr(fund.unsignedXdr, { expectedAddress: signer });
+      if (onFundSigned) {
+        const { TransactionBuilder } = await import("@stellar/stellar-sdk");
+        const tx = TransactionBuilder.fromXDR(signedXdr, NETWORK_PASSPHRASE);
+        const hash = Array.from(tx.hash(), (byte) => byte.toString(16).padStart(2, "0")).join("");
+        onFundSigned(contractId, { hash, expires: "timeBounds" in tx ? Number(tx.timeBounds?.maxTime ?? 0) : 0 });
+      }
+      await api("/api/escrow", { action: "submit", signedXdr });
       return { contractId };
     },
     async release({ access, ...input }) {

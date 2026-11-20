@@ -11,7 +11,7 @@ const RISK_LABEL = { sin_riesgo: "Sin riesgo", alerta: "Alerta: revisar", pendie
 const RISK_CLASS = { sin_riesgo: "pill pill-ok", alerta: "pill pill-alert", pendiente: "pill pill-wait" } as const;
 
 export default function CooperativaPage() {
-  const { lot, mode, preview, busy, log, operation, verifyParcels, anchorPassport, reset } = useLot();
+  const { lot, mode, preview, practice, busy, log, operation, verifyParcels, anchorPassport, reset } = useLot();
   const [error, setError] = useState<string | null>(null);
   const canEdit = !operation.active || operation.view?.role === "cooperativa";
   async function act(fn: () => Promise<void>) {
@@ -26,12 +26,16 @@ export default function CooperativaPage() {
   const excluded = lot.parcels.filter((p) => p.risk === "alerta").length;
   const evaluated = lot.parcels.filter((p) => p.risk !== "pendiente").length;
   const released = releasedAmount(lot);
+  const individual = practice === "cooperativa";
 
   return (
     <main className="container product-shell">
-      <ProductHero label="Cooperativa" title={lot.id} identifier example={preview}
+      <ProductHero label={individual ? "Cooperativa · Flujo independiente" : "Cooperativa"} title={lot.id} identifier example={preview}
         description={`${lot.cooperative} · ${lot.product}`}
-        actions={!preview && !operation.active && <button className="btn btn-ghost" type="button" disabled={busy} onClick={reset}>Iniciar otro lote</button>}
+        actions={!preview && !operation.active && <>
+          <button className="btn btn-ghost" type="button" disabled={busy} onClick={reset}>Iniciar otro lote</button>
+          {individual && <Link href="/testnet?rol=cooperativa" className="btn btn-ghost">Cambiar rol</Link>}
+        </>}
       />
       <ProductMetrics label="Composición del lote" items={[
         { label: "Parcelas evaluadas", value: `${evaluated}/${lot.parcels.length}` },
@@ -77,19 +81,22 @@ export default function CooperativaPage() {
               <>
                 <span className="pill pill-ok product-status">{mode === "testnet" ? "Anclado en LotPassport" : "Pasaporte de ejemplo"}</span>
                 <div className="product-address"><strong>Raíz Merkle</strong><code className="mono">{lot.passportRoot}</code></div>
+                {individual && <Link href={`/lote/${lot.id}`}>Ver pasaporte en Stellar</Link>}
               </>
             ) : (
               <>
-                <p className="muted" style={{ margin: 0 }}>Firma las credenciales de identidad, parcelas, deforestación y composición, y ancla su raíz.</p>
-                <button className="btn" type="button" disabled={busy || !verified || !canEdit || operation.view?.pendingAnchor} onClick={() => act(anchorPassport)}>
-                  {operation.view?.progress.credential ? "Continuar anclaje del pasaporte" : "Crear y anclar pasaporte"}
+                <p className="product-subtitle">{individual
+                  ? "Firma el anclaje de la huella de las parcelas aptas en LotPassport."
+                  : "Firma la credencial de origen con ACTA y ancla su raíz."}</p>
+                <button className="btn" type="button" disabled={busy || !verified || !eligible.length || !canEdit || operation.view?.pendingAnchor} onClick={() => act(anchorPassport)}>
+                  {operation.view?.progress.credential ? "Continuar anclaje del pasaporte" : individual ? "Firmar anclaje en Stellar" : "Crear y anclar pasaporte"}
                 </button>
                 {!verified && <span className="muted" style={{ fontSize: "0.85rem" }}>Primero verifica las parcelas.</span>}
-                  {mode === "testnet" && verified && !operation.view?.progress.credential && (
+                  {!individual && mode === "testnet" && verified && !operation.view?.progress.credential && (
                     <p className="muted" style={{ margin: 0 }}>Para emitir con ACTA, usa la wallet vinculada a la clave ACTA de este entorno.</p>
                   )}
                 {operation.view?.pendingAnchor && <p role="status">Esperando confirmación del anclaje en Stellar.</p>}
-                {mode === "testnet" && !operation.active && <Link href="/probar">Abrir una operación compartida</Link>}
+                {!individual && mode === "testnet" && !operation.active && <Link href="/testnet">Abrir una operación compartida</Link>}
               </>
             )}
           </section>
@@ -109,7 +116,7 @@ export default function CooperativaPage() {
                 ))}
               </>
             ) : (
-              <p style={{ margin: 0 }}>Esperando que el importador fondee el escrow.</p>
+              <p style={{ margin: 0 }}>{individual ? "Valida las liberaciones desde el flujo de Importador, sobre un lote con atestaciones en Stellar." : "Esperando que el importador fondee el escrow."}</p>
             )}
           </section>
 

@@ -39,7 +39,7 @@ npm run dev        # http://localhost:3000
 npm test           # reglas de liberación, montos y Merkle
 ```
 
-Para probar el flujo, completa las variables de `.env.local` y conecta tu wallet en `/probar`. La guía prepara las cuentas de cooperativa e importador. La landing muestra vistas de solo lectura y el pasaporte público consulta los datos anclados en Stellar.
+Para validar el flujo en Stellar Testnet, completa las variables de `.env.local`, elige tu rol en `/testnet` y conecta tu wallet. La landing muestra vistas de solo lectura y el pasaporte público consulta los datos anclados en Stellar.
 
 ## Stack
 

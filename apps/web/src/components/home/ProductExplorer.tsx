@@ -1,6 +1,6 @@
 "use client";
 
-import type { HomeLocale } from "./home-copy";
+import { homeCopy, type HomeLocale } from "./home-copy";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -195,10 +195,10 @@ function ExplorerViews({ locale }: { locale: HomeLocale }) {
         </div>
         <div className="explorer-foot">
           <span>{locale === "en" ? "The sample data describes the workflow on Stellar." : "Datos ilustrativos del flujo de Stellar."}</span>
-          <Link href={view === "pasaporte" ? PUBLIC_TESTNET_LOT_PATH : view === "importador" ? "/probar?rol=importador" : "/probar"} className="explorer-open">
+          <Link href={view === "pasaporte" ? PUBLIC_TESTNET_LOT_PATH : view === "importador" ? "/testnet?rol=importador" : "/testnet"} className="explorer-open">
             {view === "pasaporte"
               ? (locale === "en" ? "See a lot anchored on Testnet" : "Ver un lote anclado en Testnet")
-              : (locale === "en" ? "Try on Testnet" : "Probar en Testnet")} <span aria-hidden="true">↗</span>
+              : homeCopy[locale].testnetCta} <span aria-hidden="true">↗</span>
           </Link>
         </div>
       </div>

@@ -11,13 +11,14 @@ import { LotEvidenceDownload } from "@/components/LotEvidenceDownload";
 import { ProductHero, ProductMetrics } from "@/components/ProductDisplay";
 
 export default function ImportadorPage() {
-  const { lot, preview, busy, operation, fundEscrow, release } = useLot();
+  const { lot, preview, practice, busy, operation, fundEscrow, release } = useLot();
   const [asset, setAsset] = useState<AssetCode>("USDC");
   const [amount, setAmount] = useState(TESTNET_ESCROW_AMOUNT);
   const [fundError, setFundError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Partial<Record<Milestone, string>>>({});
   const escrow = lot.escrow;
-  const savedEscrow = operation.view?.progress.escrow;
+  const individual = practice === "importador";
+  const terms = operation.view?.progress.escrow ?? (individual ? escrow : undefined);
   const canEdit = !operation.active || operation.view?.role === "importador";
   const pending = operation.view?.pendingDeploy || operation.view?.pendingFund;
   const parcels = eligibleParcels(lot);
@@ -39,8 +40,9 @@ export default function ImportadorPage() {
 
   return (
     <main className="container product-shell">
-      <ProductHero label="Importador" title={lot.id} identifier example={preview}
-        description={`Compra a ${lot.cooperative} · ${lot.product}`}
+      <ProductHero label={individual ? "Importador · Flujo independiente" : "Importador"} title={lot.id} identifier example={preview}
+        description={individual ? "Lote de referencia con pasaporte y atestaciones confirmados en Stellar. Firma el escrow con tu wallet." : `Compra a ${lot.cooperative} · ${lot.product}`}
+        actions={individual && <Link href="/testnet?rol=importador" className="btn btn-ghost">Cambiar rol</Link>}
       />
       <ProductMetrics label="Estado del lote y del pago" items={[
         { label: "Monto del escrow", value: escrow ? <>{escrow.amount.toLocaleString("es-PE")} <span className="product-unit">{escrow.asset}</span></> : "—",
@@ -48,24 +50,24 @@ export default function ImportadorPage() {
         { label: "Liberado contra prueba", value: <>{releasedAmount(lot).toLocaleString("es-PE")} <span className="product-unit">{escrow?.asset}</span></>,
           note: escrow?.funded ? "Antes de comisiones" : undefined },
         { label: "Pasaporte", value: lot.passportRoot ? "Anclado" : "Pendiente",
-          note: lot.passportRoot ? `${parcels.length} parcelas aptas` : undefined },
+          note: individual ? "Registrado en LotPassport" : lot.passportRoot ? `${parcels.length} parcelas aptas` : undefined },
       ]} />
 
       {!preview && !escrow?.funded && (
         <section className="card" aria-labelledby="fondear">
           <h2 id="fondear">Fondear el escrow</h2>
-          <p className="muted" style={{ margin: 0 }}>Elige la moneda del contrato. El escrow (Trustless Work) acepta USDC o EURC.</p>
+          <p className="product-subtitle">{individual ? "La contraparte de referencia está preparada para recibir USDC en Testnet." : "El escrow de Trustless Work acepta USDC o EURC."}</p>
           <div className="row" style={{ alignItems: "flex-end", gap: 16 }}>
             <label>Moneda
-              <select value={savedEscrow?.asset ?? asset} disabled={Boolean(savedEscrow)} onChange={(e) => setAsset(e.target.value as AssetCode)}>
-                {Object.values(ASSETS).map((a) => <option key={a.code} value={a.code}>{a.label}</option>)}
+              <select value={terms?.asset ?? asset} disabled={Boolean(terms) || individual} onChange={(e) => setAsset(e.target.value as AssetCode)}>
+                {(individual ? [ASSETS.USDC] : Object.values(ASSETS)).map((a) => <option key={a.code} value={a.code}>{a.label}</option>)}
               </select>
             </label>
             <label>Monto
-              <input className="input mono" type="number" min={1} value={savedEscrow?.amount ?? amount} disabled={Boolean(savedEscrow)} onChange={(e) => setAmount(Number(e.target.value))} />
+              <input className="input mono" type="number" min={1} value={terms?.amount ?? amount} disabled={Boolean(terms)} onChange={(e) => setAmount(Number(e.target.value))} />
             </label>
             <button className="btn" type="button" disabled={busy || amount <= 0 || !lot.passportRoot || !canEdit || Boolean(pending)} onClick={fund}>
-              {escrow ? "Continuar fondeo" : `Fondear ${(savedEscrow?.amount ?? amount).toLocaleString("es-PE")} ${savedEscrow?.asset ?? asset}`}
+              {escrow ? "Continuar fondeo" : `Fondear ${(terms?.amount ?? amount).toLocaleString("es-PE")} ${terms?.asset ?? asset}`}
             </button>
           </div>
           {!lot.passportRoot && <span className="error">La cooperativa todavía no ancló el pasaporte del lote.</span>}
@@ -109,7 +111,7 @@ export default function ImportadorPage() {
         </ol>
       </section>
 
-      {!preview && (
+      {!preview && !individual && (
         <section className="card" aria-labelledby="expediente">
           <h2 id="expediente">Expediente del lote</h2>
           <p className="muted" style={{ margin: 0 }}>Reúne la evidencia de origen, las atestaciones y el estado de los pagos en un JSON privado. Comprueba el origen con la raíz del pasaporte.</p>
@@ -126,7 +128,10 @@ export default function ImportadorPage() {
         </section>
       )}
 
-      <section className="card card-dark" aria-labelledby="dds">
+      {individual ? <div className="product-inline-actions">
+        <Link className="btn btn-ghost" href={`/lote/${lot.id}`}>Ver pasaporte y atestaciones</Link>
+        {escrow && <a className="btn btn-ghost" href={`https://stellar.expert/explorer/testnet/contract/${escrow.contractId}`}>Ver escrow en Stellar</a>}
+      </div> : <section className="card card-dark" aria-labelledby="dds">
         <h2 id="dds">{preview ? "Parcelas aptas para el expediente" : "Exportar parcelas aptas"}</h2>
         <p style={{ margin: 0 }}>{parcels.length
           ? `El GeoJSON contiene ${parcels.length} ${parcels.length === 1 ? "parcela apta" : "parcelas aptas"}: geometría, superficie y resultado de riesgo.`
@@ -145,7 +150,7 @@ export default function ImportadorPage() {
           </a>}
           {lot.passportRoot && <Link className="btn btn-ghost" style={{ color: "var(--ap-parchment)", borderColor: "var(--ap-parchment)" }} href={`/lote/${lot.id}`}>Ver pasaporte público</Link>}
         </div>}
-      </section>
+      </section>}
     </main>
   );
 }

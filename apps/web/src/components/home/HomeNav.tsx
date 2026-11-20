@@ -55,7 +55,7 @@ export function HomeNav({ locale }: { locale: HomeLocale }) {
             <Link href="/" hrefLang="es" lang="es" aria-label="Español" aria-current={locale === "es" ? "page" : undefined}>ES</Link>
             <Link href="/en" hrefLang="en" lang="en" aria-label="English" aria-current={locale === "en" ? "page" : undefined}>EN</Link>
           </nav>
-          <Link href="/probar" className="btn">{homeCopy[locale].testnetCta}</Link>
+          <Link href="/testnet" className="btn">{homeCopy[locale].testnetCta}</Link>
           <button
             type="button"
             className="home-nav-toggle"
@@ -74,7 +74,7 @@ export function HomeNav({ locale }: { locale: HomeLocale }) {
         {links.map((l) => (
           <a key={l.href} href={l.href} onClick={() => setOpen(false)}>{l.label}</a>
         ))}
-        <Link href="/probar" className="btn" onClick={() => setOpen(false)}>{homeCopy[locale].testnetCta}</Link>
+        <Link href="/testnet" className="btn" onClick={() => setOpen(false)}>{homeCopy[locale].testnetCta}</Link>
       </nav>
     </header>
   );
