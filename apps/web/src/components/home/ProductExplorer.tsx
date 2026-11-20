@@ -7,10 +7,10 @@ import Link from "next/link";
 import { LotProvider } from "@/lib/store";
 import { exampleLot } from "@/lib/example-lot";
 import { MILESTONE_SHARE } from "@/lib/domain";
-import { MODE } from "@/lib/adapters";
-import CooperativaPage from "@/app/(producto)/cooperativa/page";
-import ImportadorPage from "@/app/(producto)/importador/page";
-import PasaportePublico from "@/app/(producto)/lote/[id]/page";
+import { PUBLIC_TESTNET_LOT_PATH } from "@/lib/sample-data";
+import CooperativaPage from "@/app/(producto)/(operacion)/cooperativa/page";
+import ImportadorPage from "@/app/(producto)/(operacion)/importador/page";
+import { PassportPreview } from "@/components/PassportDisplay";
 
 const VIEWS = [
   {
@@ -73,7 +73,6 @@ const VIEWS_EN = [
 ] as const;
 
 type ViewKey = (typeof VIEWS)[number]["key"];
-const lotParams = Promise.resolve({ id: "2026-JAE-014" });
 const sample = exampleLot();
 const DETAIL = {
   cooperativa: {
@@ -97,9 +96,8 @@ const DETAIL = {
 } as const;
 
 /**
- * Ventana a las pantallas reales del prototipo. Usa los mismos componentes de
- * /cooperativa, /importador y /lote/[id] con un estado de ejemplo propio:
- * servicios simulados, sin persistencia y sin firmar transacciones.
+ * Vistas de lectura con el mismo lote ilustrativo. Las operaciones ocurren
+ * dentro del flujo de Stellar Testnet.
  */
 export function ProductExplorer({ locale }: { locale: HomeLocale }) {
   return <LotProvider preview initial={sample}><ExplorerViews locale={locale} /></LotProvider>;
@@ -114,19 +112,9 @@ function ExplorerViews({ locale }: { locale: HomeLocale }) {
     const fromHash = () => {
       if (window.location.hash === "#explorar-pasaporte") setView("pasaporte");
     };
-    const fromPassportLink = (event: MouseEvent) => {
-      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      if (event.target instanceof Element && event.target.closest('a[href="#explorar-pasaporte"]')) {
-        setView("pasaporte");
-      }
-    };
     fromHash();
     window.addEventListener("hashchange", fromHash);
-    document.addEventListener("click", fromPassportLink);
-    return () => {
-      window.removeEventListener("hashchange", fromHash);
-      document.removeEventListener("click", fromPassportLink);
-    };
+    return () => window.removeEventListener("hashchange", fromHash);
   }, []);
 
   const current = views.find((v) => v.key === view)!;
@@ -143,7 +131,7 @@ function ExplorerViews({ locale }: { locale: HomeLocale }) {
   return (
     <div className="explorer">
       <div className="explorer-topline mono">
-        <span>{locale === "en" ? "ALPHA PASS / INTERACTIVE PROTOTYPE" : "ALPHA PASS / PROTOTIPO INTERACTIVO"}</span>
+        <span>{locale === "en" ? "ALPHA PASS / PRODUCT VIEWS" : "ALPHA PASS / VISTAS DEL PRODUCTO"}</span>
         <span>2026-JAE-014</span>
       </div>
       <div className="explorer-tabs" role="tablist" aria-label={locale === "en" ? "Product views" : "Vistas del producto"}>
@@ -189,31 +177,29 @@ function ExplorerViews({ locale }: { locale: HomeLocale }) {
             <strong className="mono">{detail.value}</strong>
             <p>{detail.note[language]}</p>
             <button type="button" onClick={showDetail}>
-              {language ? "Show in demo" : "Ver en la demo"} <span aria-hidden="true">↘</span>
+              {language ? "Show in this view" : "Ver en esta vista"} <span aria-hidden="true">↘</span>
             </button>
           </aside>
           <div id="explorer-panel" role="tabpanel" aria-labelledby={`explorer-tab-${view}`} className="explorer-window">
             <div className="explorer-chrome">
               <span className="explorer-dots" aria-hidden="true"><i /><i /><i /></span>
               <span className="mono explorer-url">alpha-pass{current.href}</span>
-              <span className="explorer-badge"><span aria-hidden="true" />{locale === "en" ? "SIMULATION / SAMPLE DATA" : "SIMULACIÓN / DATOS DE EJEMPLO"}</span>
+              <span className="explorer-badge"><span aria-hidden="true" />{locale === "en" ? "READ ONLY" : "SOLO LECTURA"}</span>
             </div>
             <div className="explorer-body" lang="es" key={view} ref={previewRef}>
               {view === "cooperativa" && <CooperativaPage />}
               {view === "importador" && <ImportadorPage />}
-              {view === "pasaporte" && <PasaportePublico params={lotParams} />}
+              {view === "pasaporte" && <PassportPreview lot={sample} />}
             </div>
           </div>
         </div>
         <div className="explorer-foot">
-          <span>{locale === "en" ? "Interactive simulation. No transactions are signed here." : "Vista previa interactiva y simulada: aquí no se firman transacciones."}</span>
-          {MODE === "testnet" && (
-            <Link href={view === "pasaporte" ? "/lote/2026-JAE-014-E2E6TU" : "/probar"} className="explorer-open">
-              {view === "pasaporte"
-                ? (locale === "en" ? "See the lot anchored on Testnet" : "Ver lote anclado en Testnet")
-                : (locale === "en" ? "Try with a Testnet wallet" : "Probar con wallet en Testnet")} <span aria-hidden="true">↗</span>
-            </Link>
-          )}
+          <span>{locale === "en" ? "The sample data describes the workflow on Stellar." : "Datos ilustrativos del flujo de Stellar."}</span>
+          <Link href={view === "pasaporte" ? PUBLIC_TESTNET_LOT_PATH : view === "importador" ? "/probar?rol=importador" : "/probar"} className="explorer-open">
+            {view === "pasaporte"
+              ? (locale === "en" ? "See a lot anchored on Testnet" : "Ver un lote anclado en Testnet")
+              : (locale === "en" ? "Try on Testnet" : "Probar en Testnet")} <span aria-hidden="true">↗</span>
+          </Link>
         </div>
       </div>
     </div>

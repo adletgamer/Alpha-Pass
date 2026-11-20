@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import Image from "next/image";
-import { MODE } from "@/lib/adapters";
+import { PUBLIC_TESTNET_LOT_PATH } from "@/lib/sample-data";
 import "@/app/home.css";
 import "@/app/home-editorial.css";
 import { homeCopy, type HomeLocale } from "./home-copy";
@@ -33,12 +33,10 @@ export function HomePage({ locale }: { locale: HomeLocale }) {
             {copy.heroLead}
           </p>
           <div className="hero-ctas">
-            <a href="#explorar-pasaporte" className="btn btn-lg">{copy.sample}</a>
-            {MODE === "testnet"
-              ? <Link href="/probar" className="btn btn-ghost btn-lg">{locale === "en" ? "Try with a Testnet wallet" : "Probar con wallet en Testnet"}</Link>
-              : <a href="#como-funciona" className="btn btn-ghost btn-lg">{copy.learn}</a>}
+            <Link href="/probar" className="btn btn-lg">{copy.testnetCta}</Link>
+            <Link href={PUBLIC_TESTNET_LOT_PATH} className="btn btn-ghost btn-lg">{copy.publicPassport}</Link>
           </div>
-          <p className="demo-note mono">{locale === "en" ? "Sample data · Simulation and Stellar Testnet" : "Datos de ejemplo · Simulación y Stellar Testnet"}</p>
+          <p className="demo-note mono">{copy.demoNote}</p>
         </HeroScene>
 
         {/* 03 · Problema */}
@@ -122,7 +120,7 @@ export function HomePage({ locale }: { locale: HomeLocale }) {
               <ul className="checks">
                 {copy.coopChecks.map((item) => <li key={item}>{item}</li>)}
               </ul>
-              <Link href="/cooperativa" className="btn btn-ghost">{copy.coopLink}</Link>
+              <Link href="/probar" className="btn btn-ghost">{copy.coopLink}</Link>
             </article>
             <article id="importadores" className="audience-col" aria-labelledby="imp-title">
               <p className="eyebrow">{copy.buyerEyebrow}</p>
@@ -130,7 +128,7 @@ export function HomePage({ locale }: { locale: HomeLocale }) {
               <ul className="checks">
                 {copy.buyerChecks.map((item) => <li key={item}>{item}</li>)}
               </ul>
-              <Link href="/importador" className="btn btn-ghost">{copy.buyerLink}</Link>
+              <Link href="/probar?rol=importador" className="btn btn-ghost">{copy.buyerLink}</Link>
             </article>
           </div>
           <p className="wrap disclaimer">
@@ -144,7 +142,7 @@ export function HomePage({ locale }: { locale: HomeLocale }) {
             <h2 id="final-title" className="section-title">{copy.finalTitle}</h2>
             <p className="section-lead">{copy.finalLead}</p>
             <div className="hero-ctas">
-              <a href="#explorar" className="btn btn-light btn-lg">{copy.demoCta}</a>
+              <Link href="/probar" className="btn btn-light btn-lg">{copy.testnetCta}</Link>
               <a href="https://github.com/adletgamer/Alpha-Pass" className="btn btn-outline-light btn-lg" rel="noopener">{copy.github}</a>
             </div>
           </div>
@@ -166,7 +164,7 @@ export function HomePage({ locale }: { locale: HomeLocale }) {
             <Link href="/cooperativa">{copy.cooperative}</Link>
             <Link href="/importador">{copy.importer}</Link>
             <Link href="/verificador">{copy.verifier}</Link>
-            <Link href="/lote/2026-JAE-014">{copy.publicPassport}</Link>
+            <Link href={PUBLIC_TESTNET_LOT_PATH}>{copy.publicPassport}</Link>
           </nav>
         </div>
         <p className="wrap footer-legal">{copy.legal}</p>

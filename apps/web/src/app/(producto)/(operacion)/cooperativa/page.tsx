@@ -5,14 +5,12 @@ import Link from "next/link";
 import { eligibleParcels, useLot } from "@/lib/store";
 import { releasedAmount } from "@/lib/release-gate";
 import { MILESTONES, MILESTONE_LABEL, MILESTONE_SHARE } from "@/lib/domain";
-import { DEMO_PREMIUM } from "@/lib/sample-data";
 
 const RISK_LABEL = { sin_riesgo: "Sin riesgo", alerta: "Alerta: revisar", pendiente: "Sin verificar" } as const;
 const RISK_CLASS = { sin_riesgo: "pill pill-ok", alerta: "pill pill-alert", pendiente: "pill pill-wait" } as const;
 
 export default function CooperativaPage() {
-  const { lot, mode, busy, log, operation, verifyParcels, anchorPassport, distributePremium, reset } = useLot();
-  const [shares, setShares] = useState<number[] | null>(null);
+  const { lot, mode, preview, busy, log, operation, verifyParcels, anchorPassport, reset } = useLot();
   const [error, setError] = useState<string | null>(null);
   const canEdit = !operation.active || operation.view?.role === "cooperativa";
   async function act(fn: () => Promise<void>) {
@@ -25,7 +23,6 @@ export default function CooperativaPage() {
   const verified = lot.parcels.every((p) => p.risk !== "pendiente");
   const bags = eligible.reduce((s, p) => s + p.bags, 0);
   const released = releasedAmount(lot);
-  const allReleased = lot.escrow && MILESTONES.every((m) => lot.escrow!.released[m]);
 
   return (
     <main className="container">
@@ -37,16 +34,16 @@ export default function CooperativaPage() {
             {verified ? `${bags} sacos · ${eligible.length} parcelas aptas` : `${lot.parcels.length} parcelas por verificar`} · comprador: {lot.buyer}
           </div>
         </div>
-        {!operation.active && <button className="btn btn-ghost" type="button" disabled={busy} onClick={reset}>Reiniciar demo</button>}
+        {!preview && !operation.active && <button className="btn btn-ghost" type="button" disabled={busy} onClick={reset}>Iniciar otro lote</button>}
       </div>
 
       <div className="row">
         <section className="card grow" aria-labelledby="parcelas">
           <div className="row" style={{ justifyContent: "space-between", alignItems: "center", gap: 12 }}>
             <h2 id="parcelas" tabIndex={-1}>1. Parcelas del lote</h2>
-            <button className="btn" type="button" disabled={busy || verified || !canEdit} onClick={() => act(verifyParcels)}>
+            {!preview && <button className="btn" type="button" disabled={busy || verified || !canEdit} onClick={() => act(verifyParcels)}>
               {verified ? "Parcelas verificadas" : "Verificar con Whisp (FAO)"}
-            </button>
+            </button>}
           </div>
           <div className="table-wrap">
             <table>
@@ -113,24 +110,13 @@ export default function CooperativaPage() {
             )}
           </section>
 
-          <section className="card" aria-labelledby="premio">
-            <h2 id="premio">4. Premio a productores</h2>
-            <button className="btn" type="button" disabled={operation.active || !allReleased || lot.premiumDistributed} onClick={() => setShares(distributePremium())}>
-              {lot.premiumDistributed ? "Premio repartido" : `Repartir ${DEMO_PREMIUM} ${lot.escrow?.asset ?? ""} por sacos`}
-            </button>
-            {shares && (
-              <ul style={{ margin: 0, paddingLeft: 18 }}>
-                {eligible.map((p, i) => <li key={p.id} className="mono">{p.producer}: {shares[i]}</li>)}
-              </ul>
-            )}
-          </section>
         </aside>
       </div>
 
-      <section className="card" aria-labelledby="registro">
-        <h2 id="registro">Registro de la demo</h2>
+      {!preview && <section className="card" aria-labelledby="registro">
+        <h2 id="registro">Registro de la operación</h2>
         <ul className="log">{log.length ? log.map((l, i) => <li key={i}>{l}</li>) : <li>Sin eventos todavía.</li>}</ul>
-      </section>
+      </section>}
       {error && <p className="error" role="alert">{error}</p>}
     </main>
   );

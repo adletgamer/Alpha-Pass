@@ -1,14 +1,13 @@
 // Adaptadores a las herramientas del ecosistema.
-// demo:    simulados y deterministas (sin red).
-// testnet: Whisp y Trustless Work vía rutas del servidor (claves en el servidor),
-//          ACTA con su SDK vía proxy, LotPassport firmado por la wallet del usuario.
+// Whisp y Trustless Work vía rutas del servidor, ACTA por proxy y LotPassport
+// firmado por la wallet del usuario en Stellar Testnet.
 
 import type { AssetCode, Lot, Milestone, Parcel } from "./domain";
-import { RECORDED_RISK } from "./sample-data";
 
 export type AlphaMode = "demo" | "testnet";
 export const MODE: AlphaMode =
-  process.env.NEXT_PUBLIC_ALPHA_MODE === "testnet" ? "testnet" : "demo";
+  process.env.NEXT_PUBLIC_ALPHA_MODE === "testnet" &&
+  (process.env.NEXT_PUBLIC_STELLAR_NETWORK ?? "testnet") === "testnet" ? "testnet" : "demo";
 
 export interface Providers {
   deforestation: { assess(parcels: Parcel[]): Promise<Record<string, "sin_riesgo" | "alerta">> };
@@ -22,37 +21,6 @@ export interface Providers {
   };
 }
 
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-export const demoProviders: Providers = {
-  deforestation: {
-    async assess(parcels) {
-      await wait(400);
-      return Object.fromEntries(parcels.map((p) => [p.id, RECORDED_RISK[p.id] ?? "sin_riesgo"]));
-    },
-  },
-  passport: {
-    async anchor() {
-      await wait(300);
-      return { note: "demo" };
-    },
-    async attest() {
-      await wait(200);
-      return { note: "demo" };
-    },
-  },
-  escrow: {
-    async createAndFund({ lotId }) {
-      await wait(400);
-      return { contractId: `demo-escrow-${lotId}` };
-    },
-    async release() {
-      await wait(300);
-      return { note: "demo" };
-    },
-  },
-};
-
 export async function api<T>(path: string, body: unknown, access?: string): Promise<T> {
   const headers = new Headers({ "Content-Type": "application/json" });
   if (access) headers.set("x-operation-access", access);
@@ -62,7 +30,7 @@ export async function api<T>(path: string, body: unknown, access?: string): Prom
   return json as T;
 }
 
-const testnetProviders: Providers = {
+export const providers: Providers = {
   deforestation: {
     async assess(parcels) {
       const { risks } = await api<{ risks: Record<string, "sin_riesgo" | "alerta"> }>("/api/whisp", {
@@ -114,8 +82,6 @@ const testnetProviders: Providers = {
     },
   },
 };
-
-export const providers: Providers = MODE === "demo" ? demoProviders : testnetProviders;
 
 /** Emisores Testnet de los activos aceptados por el escrow. */
 export const ASSETS: Record<AssetCode, { code: AssetCode; issuer: string; label: string }> = {

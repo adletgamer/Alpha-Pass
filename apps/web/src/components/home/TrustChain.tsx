@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { exampleLot } from "@/lib/example-lot";
 import { releasedAmount } from "@/lib/release-gate";
+import { PUBLIC_TESTNET_LOT_PATH } from "@/lib/sample-data";
 import { homeCopy, type HomeLocale } from "./home-copy";
 
 const lot = exampleLot();
@@ -33,7 +34,7 @@ export function TrustChain({ locale }: { locale: HomeLocale }) {
           <article className="trust-passport" aria-labelledby="sample-passport-heading">
             <header className="trust-passport-header">
               <Image src="/brand/alpha-pass-symbol.svg" alt="Alpha Pass" width={33} height={33} />
-              <span className="mono">{en ? "Sample data · Simulation" : "Datos de ejemplo · Simulación"}</span>
+              <span className="mono">{en ? "Illustrative data" : "Datos ilustrativos"}</span>
             </header>
             <div className="trust-passport-id">
               <h3 id="sample-passport-heading">{en ? "Digital lot passport" : "Pasaporte digital de lote"}</h3>
@@ -48,7 +49,7 @@ export function TrustChain({ locale }: { locale: HomeLocale }) {
               <span>{en ? "Sample Merkle root" : "Raíz Merkle de ejemplo"}</span>
               <code>{lot.passportRoot?.slice(0, 12)}…{lot.passportRoot?.slice(-8)}</code>
             </div>
-            <Link className="trust-passport-link" href="/lote/ejemplo">{en ? "Open the sample passport" : "Abrir el pasaporte de ejemplo"} <span aria-hidden="true">↗</span></Link>
+            <Link className="trust-passport-link" href={PUBLIC_TESTNET_LOT_PATH}>{en ? "View a lot anchored on Testnet" : "Ver un lote anclado en Testnet"} <span aria-hidden="true">↗</span></Link>
           </article>
         </div>
 

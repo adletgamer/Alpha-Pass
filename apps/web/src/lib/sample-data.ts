@@ -28,6 +28,7 @@ export const RECORDED_RISK: Record<string, "sin_riesgo" | "alerta"> = {
 };
 
 export const SAMPLE_LOT_ID = "2026-JAE-014";
+export const PUBLIC_TESTNET_LOT_PATH = "/lote/2026-JAE-014-E2EE81AD5CA";
 
 /** En Testnet cada prueba ancla un lote nuevo: LotPassport no admite IDs repetidos. */
 export function newTestnetLotId() {
@@ -47,7 +48,5 @@ export function initialLot(id = SAMPLE_LOT_ID): Lot {
   };
 }
 
-export const DEMO_ESCROW_AMOUNT = 16500;
 /** Monto del escrow en Testnet: alcanza con el USDC de prueba de una wallet (200). */
 export const TESTNET_ESCROW_AMOUNT = 150;
-export const DEMO_PREMIUM = 1200;

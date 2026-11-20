@@ -3,10 +3,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useState } from "react";
 import type { AssetCode, Lot, Milestone } from "./domain";
 import { MILESTONES } from "./domain";
-import { canRelease, GATE_MESSAGE, splitPremium } from "./release-gate";
-import { initialLot, newTestnetLotId, DEMO_PREMIUM } from "./sample-data";
+import { canRelease, GATE_MESSAGE } from "./release-gate";
+import { initialLot, newTestnetLotId } from "./sample-data";
 import { passportRoot, sha256Hex } from "./merkle";
-import { api, demoProviders, providers as appProviders, MODE, type AlphaMode } from "./adapters";
+import { api, providers, MODE, type AlphaMode } from "./adapters";
 import { operationRequest, useSharedOperation } from "./operation-client";
 import type { LotEvidence } from "./lot-evidence";
 import { resumeEscrow } from "./escrow-recovery";
@@ -19,8 +19,7 @@ type Action =
   | { type: "anchor"; root: string }
   | { type: "fund"; asset: AssetCode; amount: number; contractId: string }
   | { type: "attest"; milestone: Milestone; issuer: string; evidenceHash: string }
-  | { type: "release"; milestone: Milestone }
-  | { type: "premium" };
+  | { type: "release"; milestone: Milestone };
 
 function reducer(lot: Lot, a: Action): Lot {
   switch (a.type) {
@@ -54,8 +53,6 @@ function reducer(lot: Lot, a: Action): Lot {
     case "release":
       if (!lot.escrow) return lot;
       return { ...lot, escrow: { ...lot.escrow, released: { ...lot.escrow.released, [a.milestone]: true } } };
-    case "premium":
-      return { ...lot, premiumDistributed: true };
   }
 }
 
@@ -84,18 +81,28 @@ interface Ctx {
   fundEscrow(asset: AssetCode, amount: number): Promise<void>;
   attest(milestone: Milestone, issuer: string, evidence: string): Promise<string | null>;
   release(milestone: Milestone): Promise<string | null>;
-  distributePremium(): number[];
   reset(): void;
 }
 
 const LotContext = createContext<Ctx | null>(null);
-const STORAGE_KEY = "alpha-pass-demo-lot";
+const STORAGE_KEY = "alpha-pass-testnet-lot";
+
+function readStoredLot(key: string): Lot | null {
+  try {
+    const lot = JSON.parse(localStorage.getItem(key) ?? "null") as Lot | null;
+    if (!lot || !/^2026-JAE-014-[A-Z0-9]{4,16}$/.test(lot.id) ||
+      !Array.isArray(lot.parcels) || !Array.isArray(lot.attestations)) return null;
+    return !lot.escrow || /^C[A-Z2-7]{55}$/.test(lot.escrow.contractId) ? lot : null;
+  } catch {
+    return null;
+  }
+}
 
 interface LotProviderProps {
   children: React.ReactNode;
   /** Estado inicial (vista previa de la home). */
   initial?: Lot;
-  /** Vista previa: servicios simulados y sin persistencia. Nunca firma transacciones. */
+  /** Vista previa de solo lectura, sin persistencia. */
   preview?: boolean;
 }
 
@@ -103,32 +110,29 @@ export function LotProvider({ children, initial, preview = false }: LotProviderP
   const [localLot, dispatch] = useReducer(reducer, undefined, () => initial ?? initialLot());
   const shared = useSharedOperation(!preview && MODE === "testnet");
   const lot = shared.view?.lot ?? localLot;
-  const providers = preview ? demoProviders : appProviders;
   const [busy, setBusy] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
   const [log, setLog] = useState<string[]>([]);
   const note = useCallback((m: string) => setLog((l) => [`${new Date().toLocaleTimeString("es-PE")} · ${m}`, ...l].slice(0, 30)), []);
 
   useEffect(() => {
-    if (preview) return;
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) dispatch({ type: "load", lot: JSON.parse(saved) });
-      // En Testnet, un lote nuevo necesita un ID que no exista todavía en LotPassport.
-      else if (MODE === "testnet") dispatch({ type: "reset", id: newTestnetLotId() });
-    } catch {
-      /* estado nuevo si no hay almacenamiento */
-    }
+    if (preview || MODE !== "testnet") return;
+    // Las versiones anteriores usaban la misma clave para ejemplos y Testnet.
+    const saved = readStoredLot(STORAGE_KEY) ?? readStoredLot("alpha-pass-demo-lot");
+    dispatch(saved ? { type: "load", lot: saved } : { type: "reset", id: newTestnetLotId() });
+    setHydrated(true);
   }, [preview]);
   useEffect(() => {
-    if (preview) return;
+    if (preview || !hydrated) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(localLot));
     } catch {
       /* sin persistencia */
     }
-  }, [localLot, preview]);
+  }, [localLot, preview, hydrated]);
 
   const run = useCallback(async <T,>(fn: () => Promise<T>): Promise<T> => {
+    if (preview || MODE !== "testnet") throw new Error("Abre la prueba en Stellar Testnet para operar.");
     setBusy(true);
     try {
       return await fn();
@@ -139,7 +143,7 @@ export function LotProvider({ children, initial, preview = false }: LotProviderP
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [preview]);
 
   const value = useMemo<Ctx>(() => {
     function requireRole(role: OperationRole) {
@@ -307,20 +311,13 @@ export function LotProvider({ children, initial, preview = false }: LotProviderP
       note(`Hito ${milestone} liberado`);
       return null;
     }),
-    distributePremium: () => {
-      const parcels = eligibleParcels(lot);
-      const shares = splitPremium(DEMO_PREMIUM, parcels.map((p) => p.bags));
-      dispatch({ type: "premium" });
-      note(`Premio de ${DEMO_PREMIUM} ${lot.escrow?.asset ?? ""} repartido a ${parcels.length} productores`);
-      return shares;
-    },
     reset: () => {
-      if (shared.access) return;
-      dispatch(initial ? { type: "load", lot: initial } : { type: "reset", id: !preview && MODE === "testnet" ? newTestnetLotId() : undefined });
+      if (preview || MODE !== "testnet" || shared.access) return;
+      dispatch({ type: "reset", id: newTestnetLotId() });
       setLog([]);
     },
     };
-  }, [lot, localLot, busy, log, run, note, providers, initial, preview, shared]);
+  }, [lot, localLot, busy, log, run, note, preview, shared]);
 
   return <LotContext.Provider value={value}>{children}</LotContext.Provider>;
 }
