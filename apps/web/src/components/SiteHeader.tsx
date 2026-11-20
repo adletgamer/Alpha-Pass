@@ -9,6 +9,7 @@ import { useLot } from "@/lib/store";
 
 export function SiteHeader() {
   const path = usePathname();
+  const samplePassport = path === "/lote/ejemplo";
   const { lot } = useLot();
   const LINKS = [
     ...(MODE === "testnet" ? [{ href: "/probar", label: "Probar en Testnet" }] : []),
@@ -19,10 +20,11 @@ export function SiteHeader() {
   ];
   return (
     <>
-      {MODE === "demo" && (
+      {samplePassport ? (
+        <div className="demo-banner">Pasaporte de ejemplo · Datos y pagos simulados.</div>
+      ) : MODE === "demo" ? (
         <div className="demo-banner">Modo demo: datos de ejemplo y servicios simulados. Nada se envía a Stellar.</div>
-      )}
-      {MODE === "testnet" && (
+      ) : (
         <div className="demo-banner">Stellar Testnet: transacciones reales de prueba, sin dinero real.</div>
       )}
       <header className="site">
@@ -36,7 +38,7 @@ export function SiteHeader() {
                 {l.label}
               </Link>
             ))}
-            <WalletButton />
+            {!samplePassport && <WalletButton />}
           </nav>
         </div>
       </header>

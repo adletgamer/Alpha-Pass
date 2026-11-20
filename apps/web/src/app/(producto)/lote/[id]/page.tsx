@@ -1,126 +1,204 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
+import { LotEvidenceDownload } from "@/components/LotEvidenceDownload";
+import { MILESTONES, MILESTONE_LABEL, type EscrowState, type Milestone } from "@/lib/domain";
+import { exampleLot } from "@/lib/example-lot";
+import { MAX_EVIDENCE_BYTES, buildLotEvidence, verifyLotEvidence, type EvidenceReference } from "@/lib/lot-evidence";
 import { eligibleParcels, useLot } from "@/lib/store";
-import { MILESTONES, MILESTONE_LABEL, type Milestone } from "@/lib/domain";
+import styles from "./Passport.module.css";
 
 interface OnChainLot {
+  contractId: string;
   cooperative: string;
   passportRoot: string;
   parcels: number;
   bags: number;
   createdAt: number;
-  attestations: { milestone: Milestone; issuer: string; evidenceHash: string; timestamp: number }[];
+  attestations: { milestone: Milestone; issuer: string; timestamp: number }[];
 }
 
 const EXPLORER = "https://stellar.expert/explorer/testnet";
-const short = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`;
+const dateFormat = new Intl.DateTimeFormat("es-PE", { dateStyle: "medium", timeZone: "America/Lima" });
+const sample = exampleLot();
 
-/** Pasaporte leído de LotPassport: sirve en cualquier navegador, sin datos locales. */
-function OnChainPassport({ id }: { id: string }) {
-  const [state, setState] = useState<{ lot?: OnChainLot; error?: string; loading: boolean }>({ loading: true });
+function PassportHeader({ id, simulation }: { id: string; simulation: boolean }) {
+  return (
+    <header className={styles.hero}>
+      <div className={styles.heroMeta}>
+        <span>Pasaporte de lote</span>
+        <span className="pill pill-ok">{simulation ? "Simulación" : "Stellar Testnet"}</span>
+      </div>
+      <h1 className="mono">{id}</h1>
+      <p>Alpha Pass · Trazabilidad de origen</p>
+    </header>
+  );
+}
+
+function PassportStats({ parcels, bags, attested }: { parcels: number; bags: number; attested: number }) {
+  return (
+    <dl className={styles.stats}>
+      <div><dt>Parcelas incluidas</dt><dd>{parcels}</dd></div>
+      <div><dt>Sacos registrados</dt><dd>{bags}</dd></div>
+      <div><dt>Hitos atestados</dt><dd>{attested}/{MILESTONES.length}</dd></div>
+    </dl>
+  );
+}
+
+function Milestones({ attestations, released }: {
+  attestations: { milestone: Milestone; issuer: string; date: Date }[];
+  released?: EscrowState["released"];
+}) {
+  return (
+    <section className={`card ${styles.section}`} aria-labelledby="hitos-del-pasaporte">
+      <h2 id="hitos-del-pasaporte">Hitos del lote</h2>
+      <ol className={styles.timeline}>
+        {MILESTONES.map((milestone) => {
+          const proof = attestations.find((attestation) => attestation.milestone === milestone);
+          return (
+            <li key={milestone}>
+              <strong>{MILESTONE_LABEL[milestone]}</strong>
+              <span className={`pill ${proof ? "pill-ok" : "pill-wait"}`}>{proof ? "Atestado" : "Pendiente"}</span>
+              {proof && <small>{dateFormat.format(proof.date)} · <span className="mono">{proof.issuer}</span></small>}
+              {released?.[milestone] && <small>Pago simulado liberado</small>}
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
+function VerifyEvidence({ reference, download }: {
+  reference: EvidenceReference;
+  download?: () => ReturnType<typeof buildLotEvidence>;
+}) {
+  const [checking, setChecking] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; text: string }>();
+
+  async function checkFile(file: File) {
+    setChecking(true);
+    setResult(undefined);
+    try {
+      if (file.size > MAX_EVIDENCE_BYTES) throw new Error("El expediente debe pesar menos de 256 KB.");
+      let data: unknown;
+      try {
+        data = JSON.parse(await file.text());
+      } catch {
+        throw new Error("Selecciona el archivo JSON del expediente Alpha Pass.");
+      }
+      const verification = await verifyLotEvidence(data, reference);
+      const messages = {
+        matches: reference.source.type === "simulation" ? "La evidencia coincide con la raíz de ejemplo." : "La evidencia de origen coincide con la raíz registrada en Stellar.",
+        wrong_lot: "Este expediente pertenece a otro lote.",
+        wrong_source: "El expediente corresponde a otro entorno o contrato.",
+        invalid: "El archivo no tiene el formato de un expediente Alpha Pass.",
+        different: "La evidencia de origen es distinta de la que corresponde a esta raíz.",
+      };
+      setResult({ ok: verification === "matches", text: messages[verification] });
+    } catch (error) {
+      setResult({ ok: false, text: error instanceof Error ? error.message : "No se pudo comprobar el expediente." });
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  return (
+    <section className={`card ${styles.section}`} id="verificar-expediente" aria-labelledby="pruebas-lote">
+      <h2 id="pruebas-lote" tabIndex={-1}>Comprobar evidencia de origen</h2>
+      <p className="muted" id="detalle-verificacion">Compara el origen del expediente con la raíz del pasaporte. El archivo se lee solo en tu dispositivo. La comprobación abarca las parcelas y la composición del lote.</p>
+      <dl className={styles.root}>
+        <dt>{reference.source.type === "simulation" ? "Raíz de ejemplo" : "Raíz registrada en Stellar"}</dt>
+        <dd>{reference.root}</dd>
+      </dl>
+      {download && <LotEvidenceDownload load={download} label="Descargar expediente de ejemplo" />}
+      <label className={styles.upload}>
+        Seleccionar expediente JSON
+        <input type="file" accept=".json,application/json" aria-describedby="detalle-verificacion" disabled={checking} onChange={(event) => {
+          const file = event.currentTarget.files?.[0];
+          event.currentTarget.value = "";
+          if (file) void checkFile(file);
+        }} />
+      </label>
+      <div role="status" aria-live="polite">
+        {checking && <p className="muted">Calculando la raíz del expediente…</p>}
+        {result && <p className={result.ok ? "pill pill-ok" : "error"}>{result.text}</p>}
+      </div>
+      {reference.source.type === "stellar-testnet" && <a href={`${EXPLORER}/contract/${reference.source.contractId}`} target="_blank" rel="noreferrer">Ver el contrato LotPassport</a>}
+    </section>
+  );
+}
+
+function TestnetPassport({ id }: { id: string }) {
+  const [state, setState] = useState<{ lot?: OnChainLot; error?: string }>({});
   useEffect(() => {
-    let alive = true;
-    fetch(`/api/lote/${encodeURIComponent(id)}`)
-      .then(async (r) => {
-        const j = await r.json().catch(() => ({}));
-        if (!alive) return;
-        setState(r.ok ? { lot: j, loading: false } : { error: j.message ?? `Error ${r.status}`, loading: false });
+    const controller = new AbortController();
+    fetch(`/api/lote/${encodeURIComponent(id)}`, { signal: controller.signal })
+      .then(async (response) => {
+        const body = await response.json();
+        setState(response.ok ? { lot: body } : { error: body.message ?? "No se pudo consultar el lote." });
       })
-      .catch(() => alive && setState({ error: "No se pudo leer LotPassport.", loading: false }));
-    return () => { alive = false; };
+      .catch(() => {
+        if (!controller.signal.aborted) setState({ error: "No se pudo leer LotPassport." });
+      });
+    return () => controller.abort();
   }, [id]);
 
-  if (state.loading) return <section className="card"><p className="muted" style={{ margin: 0 }}>Leyendo LotPassport en Stellar Testnet…</p></section>;
-  if (!state.lot) return <section className="card"><p className="muted" style={{ margin: 0 }}>En la cadena: {state.error}</p></section>;
   const lot = state.lot;
   return (
-    <section className="card" aria-labelledby="en-cadena">
-      <h2 id="en-cadena">Registro en Stellar Testnet</h2>
-      <Row k="Cooperativa (wallet)" v={short(lot.cooperative)} />
-      <Row k="Parcelas aptas" v={String(lot.parcels)} />
-      <Row k="Sacos" v={String(lot.bags)} />
-      <Row k="Anclado" v={new Date(lot.createdAt * 1000).toLocaleString("es-PE")} />
-      {MILESTONES.map((m) => {
-        const a = lot.attestations.find((x) => x.milestone === m);
-        return <Row key={m} k={MILESTONE_LABEL[m]} v={a ? `Firmado por ${short(a.issuer)} · ${new Date(a.timestamp * 1000).toLocaleDateString("es-PE")}` : "Pendiente"} />;
-      })}
-      <div className="mono muted" style={{ fontSize: "0.75rem", wordBreak: "break-all" }}>Raíz {lot.passportRoot}</div>
-      <a href={`${EXPLORER}/contract/${process.env.NEXT_PUBLIC_LOT_PASSPORT_CONTRACT_ID ?? ""}`} target="_blank" rel="noreferrer">Ver el contrato LotPassport en stellar.expert</a>
-    </section>
+    <main className={`container ${styles.shell}`}>
+      <PassportHeader id={id} simulation={false} />
+      {lot ? (
+        <>
+          <PassportStats parcels={lot.parcels} bags={lot.bags} attested={lot.attestations.length} />
+          <p className="muted">Anclado el {dateFormat.format(lot.createdAt * 1000)} · Cooperativa <span className="mono">{lot.cooperative.slice(0, 6)}…{lot.cooperative.slice(-4)}</span></p>
+          <div className={styles.grid}>
+            <VerifyEvidence reference={{ lotId: id, root: lot.passportRoot, parcels: lot.parcels, source: { type: "stellar-testnet", contractId: lot.contractId } }} />
+            <Milestones attestations={lot.attestations.map((proof) => ({ ...proof, date: new Date(proof.timestamp * 1000) }))} />
+          </div>
+        </>
+      ) : <p className="card" role="status">{state.error ?? "Leyendo LotPassport en Stellar Testnet…"}</p>}
+    </main>
   );
 }
 
 export default function PasaportePublico({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { lot, mode } = useLot();
+  const { lot: localLot, mode } = useLot();
+  const isExample = id === "ejemplo";
 
-  if (id !== lot.id) {
-    if (mode === "testnet") {
-      return (
-        <main className="container" style={{ maxWidth: 520 }}>
-          <section className="card card-dark">
-            <div>Pasaporte de lote</div>
-            <div className="mono" style={{ fontSize: "2rem", fontWeight: 600 }}>{id}</div>
-          </section>
-          <OnChainPassport id={id} />
-          <p className="muted" style={{ textAlign: "center", fontSize: "0.8rem", margin: 0 }}>Stellar Testnet · parcelas y productores de ejemplo</p>
-        </main>
-      );
-    }
+  if (!isExample && mode === "testnet") return <TestnetPassport key={id} id={id} />;
+  if (!isExample && id !== localLot.id) {
     return (
       <main className="container">
         <h1>Lote no encontrado</h1>
-        <p className="muted">En la demo solo existe el lote {lot.id}.</p>
+        <p className="muted">El lote activo de la simulación es {localLot.id}.</p>
       </main>
     );
   }
 
+  const lot = isExample ? sample : localLot;
   const parcels = eligibleParcels(lot);
-  const hectares = Math.round(parcels.reduce((s, p) => s + p.hectares, 0) * 10) / 10;
-  const bags = parcels.reduce((s, p) => s + p.bags, 0);
-
+  const source = { type: "simulation" } as const;
   return (
-    <main className="container" style={{ maxWidth: 520 }}>
-      <section className="card card-dark">
-        <span className="pill" style={{ background: "var(--ap-green-600)", color: "var(--ap-parchment)", alignSelf: "flex-start" }}>
-          {lot.passportRoot
-            ? mode === "testnet" ? "Pasaporte anclado en Stellar" : "Pasaporte de ejemplo · Simulación"
-            : "Pasaporte en preparación"}
-        </span>
-        <div>Pasaporte de lote</div>
-        <div className="mono" style={{ fontSize: "2rem", fontWeight: 600 }}>{lot.id}</div>
-        <div>{lot.product} · Jaén, Cajamarca, Perú</div>
-      </section>
-      <div className="stats" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-        <div className="card"><span className="muted">Parcelas</span><span className="stat-value mono" style={{ fontSize: "1.4rem" }}>{parcels.length} · {hectares} ha</span></div>
-        <div className="card"><span className="muted">Volumen</span><span className="stat-value mono" style={{ fontSize: "1.4rem" }}>{bags} sacos</span></div>
+    <main className={`container ${styles.shell}`}>
+      <PassportHeader id={lot.id} simulation />
+      <PassportStats parcels={parcels.length} bags={parcels.reduce((total, parcel) => total + parcel.bags, 0)} attested={lot.attestations.length} />
+      <p className="muted">{lot.product} · Jaén, Cajamarca, Perú · Datos de ejemplo</p>
+      <div className={styles.grid}>
+        {lot.passportRoot ? (
+          <VerifyEvidence
+            reference={{ lotId: lot.id, root: lot.passportRoot, parcels: parcels.length, source }}
+            download={isExample ? () => buildLotEvidence(lot, source) : undefined}
+          />
+        ) : (
+          <section className="card" aria-labelledby="pruebas-lote">
+            <h2 id="pruebas-lote">Evidencia de origen</h2>
+            <p className="muted">Completa el anclaje simulado desde Cooperativa para obtener la raíz del pasaporte.</p>
+          </section>
+        )}
+        <Milestones attestations={lot.attestations.map((proof) => ({ ...proof, date: new Date(proof.timestamp) }))} released={lot.escrow?.released} />
       </div>
-      <section className="card">
-        <h2 id="pruebas-lote" tabIndex={-1}>Pruebas del lote</h2>
-        <Row k="Evaluación satelital de parcelas incluidas" v={parcels.length > 0 ? "Riesgo bajo" : "Pendiente"} />
-        <Row k="Fuente satelital" v={mode === "testnet" ? "Whisp (FAO)" : "Resultado de ejemplo"} />
-        <Row k="Ubicación exacta de parcelas" v="Solo para el comprador" />
-        {lot.passportRoot && <div className="mono muted" style={{ fontSize: "0.75rem", wordBreak: "break-all" }}>Raíz {lot.passportRoot}</div>}
-      </section>
-      <section className="card">
-        <h2>Recorrido</h2>
-        {MILESTONES.map((m) => {
-          const a = lot.attestations.find((x) => x.milestone === m);
-          return <Row key={m} k={MILESTONE_LABEL[m]} v={a ? new Date(a.timestamp).toLocaleDateString("es-PE") : "Pendiente"} />;
-        })}
-      </section>
-      {mode === "testnet" && lot.passportRoot && <OnChainPassport id={id} />}
-      <p className="muted" style={{ textAlign: "center", fontSize: "0.8rem", margin: 0 }}>{mode === "testnet" ? "Stellar Testnet · parcelas y productores de ejemplo" : "Simulación · datos de ejemplo"}</p>
     </main>
-  );
-}
-
-function Row({ k, v }: { k: string; v: string }) {
-  return (
-    <div className="row" style={{ justifyContent: "space-between", gap: 8 }}>
-      <span>{k}</span>
-      <strong style={{ color: "var(--ap-green-800)" }}>{v}</strong>
-    </div>
   );
 }

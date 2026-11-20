@@ -82,3 +82,11 @@ El runner compartido se ejecuta con `node apps/web/scripts/e2e-testnet.mjs http:
 - La prueba de LotPassport y Trustless Work v1 pasó sus 20 pasos con el lote `2026-JAE-014-E2EE81AD5CA`. El escrow se fondeó con 150 USDC de prueba, rechazó la liberación sin atestación y pagó 149,55 USDC de prueba a la cooperativa tras los tres hitos.
 - Una operación de prueba en Neon con las referencias de ese lote confirmó los tres pagos en Stellar. Reintentar el último hito devolvió el recibo original. El enlace de cooperativa recibió 403 al intentar liberar.
 - ACTA permitió registrar la identidad y crear la bóveda de la cuenta de prueba. Rechazó la emisión porque la wallet no era la asociada a la clave del servidor. Queda por repetir la emisión y el recorrido compartido completo con la wallet vinculada.
+
+## Expediente del lote
+
+En Testnet, el enlace del importador permite descargar el expediente de una operación compartida tras confirmar el anclaje. El archivo JSON `alpha-pass.lot-evidence/v1` contiene la evidencia de las parcelas incluidas, sus resultados de riesgo y la composición del lote. Incluye una instantánea de las atestaciones y del estado de pago de cada hito, con las referencias de liberación disponibles.
+
+El pasaporte público usa LotPassport como referencia y no publica las coordenadas. Puede leer un expediente local y recalcular su raíz Merkle sin enviar el archivo. La raíz cubre el contenido de `claims`. La instantánea de atestaciones y pagos refleja la consulta realizada al exportar. Este archivo conserva evidencias para revisión y la declaración EUDR se tramita por separado.
+
+El ejemplo en `/lote/ejemplo` permite probar la comparación sin wallet. Los expedientes simulados solo se aceptan al comparar contra una referencia de simulación.
