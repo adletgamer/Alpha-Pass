@@ -6,7 +6,7 @@
 
 **Cada lote con su origen, cada pago con su prueba.**
 
-Alpha Pass une el pasaporte verificado de un lote de café o cacao peruano con un escrow por hitos en **USDC o EURC** sobre Stellar. Cada hito del pago (acopio, embarque, llegada) se libera solo si existe la credencial firmada que lo prueba. Al final, el importador tiene el paquete de evidencias para su declaración EUDR y la cooperativa cobra sin intermediario.
+Alpha Pass une la evidencia de origen de un lote de café peruano con un escrow por hitos en **USDC o EURC** sobre Stellar. El importador descarga el expediente del lote y puede comprobar su evidencia de origen contra la raíz del pasaporte. Cada pago de acopio, embarque o llegada requiere una atestación firmada por un verificador autorizado.
 
 Proyecto para Stellar Codember Perú 2026. Estado: **prototipo con modo demo y adaptadores Testnet**. `LotPassport` está desplegado en Testnet; el flujo completo depende de configurar el contrato en la app publicada y de las claves de proveedores.
 
@@ -39,7 +39,7 @@ npm run dev        # http://localhost:3000
 npm test           # reglas de liberación, montos y Merkle
 ```
 
-Recorrido de la demo: Cooperativa (verificar parcelas, anclar pasaporte) → Importador (elegir USDC o EURC y fondear) → Verificador (firmar acopio) → Importador (liberar; probar a liberar el embarque sin prueba y ver el rechazo) → Pasaporte público.
+Recorrido de la demo: Cooperativa (verificar parcelas, anclar pasaporte) → Importador (fondear y descargar el expediente) → Verificador (firmar acopio) → Importador (liberar el hito) → Pasaporte público. En `/lote/ejemplo` puedes descargar y comprobar un expediente simulado sin wallet.
 
 ## Stack
 
@@ -47,9 +47,9 @@ Stellar Testnet · Soroban (Rust, soroban-sdk 29) · Trustless Work · ACTA · C
 
 ## Lo que todavía no está
 
-- Configuración y validación de punta a punta de Trustless Work y Whisp en Testnet; sus adaptadores y rutas ya existen, pero faltan las claves para probarlos.
+- Emisión ACTA de punta a punta en el flujo compartido con la wallet vinculada a la clave del entorno. La evaluación Whisp y los pagos por Trustless Work v1 ya se probaron en Testnet.
 - Despliegue de `PremiumSplitter` en Testnet y cliente TypeScript generado. `LotPassport` ya está desplegado en Testnet (ID en `.env.example`).
-- Firma con Stellar Wallets Kit, fee-bump y retiro SEP-24.
+- Fee-bump y retiro SEP-24.
 - Ver el límite del MVP sobre la aprobación de hitos en [docs/FLUJO.md](docs/FLUJO.md#límite-honesto-del-mvp).
 
 ## Licencia

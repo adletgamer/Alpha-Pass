@@ -2,13 +2,21 @@ import { readFile } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
 import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { RECORDED_RISK, SAMPLE_PARCELS } from "../sample-data";
+import { initialLot, RECORDED_RISK, SAMPLE_PARCELS } from "../sample-data";
 import { POST } from "@/app/api/operations/route";
 import { POST as assess } from "@/app/api/whisp/route";
+import { GET as publicPassport } from "@/app/api/lote/[id]/route";
 import { readOperation, updateOperation, recordMilestoneReceipt } from "./operations-db";
 import { applyCheckpoint } from "./operation-state";
+import { readLotOnChain } from "./stellar";
+import { passportRoot } from "../merkle";
+import { verifyLotEvidence } from "../lot-evidence";
 
 vi.mock("server-only", () => ({}));
+vi.mock("./stellar", async (importOriginal) => ({
+  ...await importOriginal<typeof import("./stellar")>(),
+  readLotOnChain: vi.fn(),
+}));
 
 let db: PGlite;
 let server: PGLiteSocketServer;
@@ -99,5 +107,40 @@ describe("operación compartida con PostgreSQL", () => {
     const anchor = applyCheckpoint(state, "cooperativa", { type: "anchor", hash: "b".repeat(64), expires: 123 }, () => true);
     expect(anchor.credential).toEqual(credential);
     expect(() => applyCheckpoint(anchor, "cooperativa", { type: "anchor", hash: "d".repeat(64), expires: 456 }, () => false)).toThrow("pendiente");
+  });
+
+  it("sirve las hojas al importador después del anclaje y solo la referencia al público", async () => {
+    const contractId = `C${"A".repeat(55)}`;
+    vi.stubEnv("NEXT_PUBLIC_LOT_PASSPORT_CONTRACT_ID", contractId);
+    expect((await action(keys.importador, { action: "evidence" })).status).toBe(409);
+    for (const key of [keys.cooperativa, keys.verificador, ""]) {
+      expect((await action(key, { action: "evidence" })).status).toBe(403);
+    }
+    const lot = initialLot(id);
+    const parcels = lot.parcels.filter((parcel) => RECORDED_RISK[parcel.id] === "sin_riesgo").map((p) => ({ ...p, risk: "sin_riesgo" as const }));
+    const root = await passportRoot(lot, parcels);
+    const row = (await readOperation(id))!;
+    expect(await updateOperation(row, { ...row.state, credential: { id: "fixture", txHash: "", root } })).toBe(true);
+    vi.mocked(readLotOnChain).mockResolvedValueOnce({
+      lotId: id, cooperative: address, passportRoot: "b".repeat(64), parcels: 4, bags: 60, createdAt: 1795120000, attestations: [],
+    });
+    expect((await action(keys.importador, { action: "evidence" })).status).toBe(409);
+    vi.mocked(readLotOnChain).mockResolvedValue({
+      lotId: id, cooperative: address, passportRoot: root, parcels: 4, bags: 60, createdAt: 1795120000, attestations: [],
+    });
+    const response = await action(keys.importador, { action: "evidence" });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    const evidence = await response.json();
+    expect(JSON.stringify(evidence)).not.toContain(keys.importador);
+    expect(JSON.stringify(evidence)).not.toContain("P-05");
+    const publicResult = await publicPassport(new Request(`https://alpha.example/api/lote/${id}`), { params: Promise.resolve({ id }) });
+    const publicRecord = await publicResult.json();
+    expect(publicRecord.contractId).toBe(contractId);
+    expect(publicRecord).not.toHaveProperty("claims");
+    expect(JSON.stringify(publicRecord)).not.toContain("coordinates");
+    expect(await verifyLotEvidence(evidence, {
+      lotId: id, root: publicRecord.passportRoot, parcels: publicRecord.parcels, source: { type: "stellar-testnet", contractId },
+    })).toBe("matches");
   });
 });

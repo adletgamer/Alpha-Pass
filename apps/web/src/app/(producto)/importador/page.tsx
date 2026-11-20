@@ -7,6 +7,8 @@ import { canRelease, milestoneAmount, releasedAmount, GATE_MESSAGE } from "@/lib
 import { MILESTONES, MILESTONE_LABEL, MILESTONE_SHARE, type AssetCode, type Milestone } from "@/lib/domain";
 import { ASSETS } from "@/lib/adapters";
 import { DEMO_ESCROW_AMOUNT, TESTNET_ESCROW_AMOUNT } from "@/lib/sample-data";
+import { buildLotEvidence } from "@/lib/lot-evidence";
+import { LotEvidenceDownload } from "@/components/LotEvidenceDownload";
 
 export default function ImportadorPage() {
   const { lot, mode, preview, busy, operation, fundEscrow, release, attest } = useLot();
@@ -20,6 +22,7 @@ export default function ImportadorPage() {
   const pending = operation.view?.pendingDeploy || operation.view?.pendingFund;
   const parcels = eligibleParcels(lot);
   const nextProof = MILESTONES.find((m) => !lot.attestations.some((a) => a.milestone === m));
+  const canExportEvidence = Boolean(lot.passportRoot) && (mode === "demo" || operation.view?.role === "importador");
 
   async function fund() {
     setFundError(null);
@@ -118,6 +121,26 @@ export default function ImportadorPage() {
           </div>
         )}
       </section>
+
+      {!preview && (
+        <section className="card" aria-labelledby="expediente">
+          <h2 id="expediente">Expediente del lote</h2>
+          <p className="muted" style={{ margin: 0 }}>Reúne la evidencia de origen, las atestaciones y el estado de los pagos en un JSON privado. Comprueba el origen con la raíz del pasaporte.</p>
+          {canExportEvidence ? (
+            <div className="row" style={{ gap: 12 }}>
+              <LotEvidenceDownload
+                load={mode === "demo" ? () => buildLotEvidence(lot, { type: "simulation" }) : operation.evidence}
+                label={mode === "demo" ? "Descargar expediente simulado" : "Descargar expediente"}
+              />
+              <Link className="btn btn-ghost" href={`/lote/${lot.id}#verificar-expediente`}>Comprobar en el pasaporte</Link>
+            </div>
+          ) : (
+            <p className="muted" style={{ margin: 0 }}>{mode === "testnet" && operation.view?.role !== "importador"
+              ? "Abre el enlace de importador de una operación compartida."
+              : "Disponible en cuanto se ancle el pasaporte."}</p>
+          )}
+        </section>
+      )}
 
       <section className="card card-dark" aria-labelledby="dds">
         <h2 id="dds">Exportar parcelas aptas</h2>

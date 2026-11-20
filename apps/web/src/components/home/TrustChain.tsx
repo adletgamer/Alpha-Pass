@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { exampleLot } from "@/lib/example-lot";
 import { releasedAmount } from "@/lib/release-gate";
 import { homeCopy, type HomeLocale } from "./home-copy";
@@ -19,7 +20,7 @@ export function TrustChain({ locale }: { locale: HomeLocale }) {
             <h2 className="section-title" id="trust-title">{en ? "Follow the evidence." : "Sigue la evidencia."}</h2>
           </div>
           <p className="section-lead">
-            {en ? "One sample lot links the origin record to each payment decision." : "Un lote de ejemplo conecta el registro de origen con cada decisión de pago."}
+            {en ? "Check the lot’s origin evidence against its passport. A signed attestation unlocks each milestone payment." : "Comprueba la evidencia de origen con el pasaporte. Una atestación firmada habilita el pago de cada hito."}
           </p>
         </div>
 
@@ -32,7 +33,7 @@ export function TrustChain({ locale }: { locale: HomeLocale }) {
           <article className="trust-passport" aria-labelledby="sample-passport-heading">
             <header className="trust-passport-header">
               <Image src="/brand/alpha-pass-symbol.svg" alt="Alpha Pass" width={33} height={33} />
-              <span className="mono">{en ? "Sample data · Stellar Testnet" : "Datos de ejemplo · Stellar Testnet"}</span>
+              <span className="mono">{en ? "Sample data · Simulation" : "Datos de ejemplo · Simulación"}</span>
             </header>
             <div className="trust-passport-id">
               <h3 id="sample-passport-heading">{en ? "Digital lot passport" : "Pasaporte digital de lote"}</h3>
@@ -47,7 +48,7 @@ export function TrustChain({ locale }: { locale: HomeLocale }) {
               <span>{en ? "Sample Merkle root" : "Raíz Merkle de ejemplo"}</span>
               <code>{lot.passportRoot?.slice(0, 12)}…{lot.passportRoot?.slice(-8)}</code>
             </div>
-            <a className="trust-passport-link" href="#explorar-pasaporte">{en ? "Explore the passport" : "Explorar el pasaporte"} <span aria-hidden="true">↗</span></a>
+            <Link className="trust-passport-link" href="/lote/ejemplo">{en ? "Open the sample passport" : "Abrir el pasaporte de ejemplo"} <span aria-hidden="true">↗</span></Link>
           </article>
         </div>
 

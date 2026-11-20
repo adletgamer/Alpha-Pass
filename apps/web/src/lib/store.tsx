@@ -7,7 +7,8 @@ import { canRelease, GATE_MESSAGE, splitPremium } from "./release-gate";
 import { initialLot, newTestnetLotId, DEMO_PREMIUM } from "./sample-data";
 import { passportRoot, sha256Hex } from "./merkle";
 import { api, demoProviders, providers as appProviders, MODE, type AlphaMode } from "./adapters";
-import { useSharedOperation } from "./operation-client";
+import { operationRequest, useSharedOperation } from "./operation-client";
+import type { LotEvidence } from "./lot-evidence";
 import { resumeEscrow } from "./escrow-recovery";
 import type { OperationRole, Risks, SharedOperation } from "./operation";
 
@@ -75,6 +76,7 @@ interface Ctx {
     invite(role: OperationRole): string | null;
     create(): Promise<void>;
     refresh(): Promise<unknown>;
+    evidence(): Promise<LotEvidence>;
     leave(): void;
   };
   verifyParcels(): Promise<void>;
@@ -170,6 +172,11 @@ export function LotProvider({ children, initial, preview = false }: LotProviderP
         }
       }),
       refresh: shared.refresh,
+      evidence: () => {
+        const access = shared.access;
+        if (!access) throw new Error("Abre el enlace del importador para exportar el expediente.");
+        return operationRequest<LotEvidence>({ action: "evidence", lotId: access.lotId }, access.key);
+      },
       leave: shared.leave,
     },
     verifyParcels: () => run(async () => {

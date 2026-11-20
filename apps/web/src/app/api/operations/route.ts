@@ -5,6 +5,7 @@ import { createOperation, operationsConfigured, updateOperation } from "@/lib/se
 import { authorizedOperation, operationView, transactionState } from "@/lib/server/operations";
 import { isAttestedOnChain, readEscrowMilestones } from "@/lib/server/stellar";
 import { verifiedIntent } from "@/lib/server/operation-intent";
+import { buildLotEvidence } from "@/lib/lot-evidence";
 
 export async function POST(request: Request) {
   try {
@@ -75,9 +76,20 @@ export async function POST(request: Request) {
       }
       throw new OperationError("La operación cambió mientras guardabas. Actualiza y vuelve a intentarlo.");
     }
-    if (body.action !== "read" && body.action !== "create") throw new OperationError("Acción desconocida.", 400);
+    if (!["read", "create", "evidence"].includes(body.action)) throw new OperationError("Acción desconocida.", 400);
     const { row, role } = await authorizedOperation(id, key);
+    if (body.action === "evidence" && role !== "importador") throw new OperationError("Abre el enlace del importador para exportar el expediente.", 403);
     const view = await operationView(row, role);
+    if (body.action === "evidence") {
+      if (!view.lot.passportRoot) throw new OperationError("El expediente se habilita cuando se confirma el anclaje.", 409);
+      const evidence = await buildLotEvidence(
+        view.lot,
+        { type: "stellar-testnet", contractId: serverEnv.lotPassportId() },
+        view.progress.releaseHashes,
+      );
+      if (!evidence) throw new OperationError("La evidencia disponible no coincide con la raíz del pasaporte.", 409);
+      return Response.json(evidence, { headers: { "Cache-Control": "private, no-store" } });
+    }
     const projected = view.progress.escrow;
     if (projected?.contractId && (!row.state.escrow?.contractId ||
       (projected.fundConfirmed && !row.state.escrow.fundConfirmed))) {

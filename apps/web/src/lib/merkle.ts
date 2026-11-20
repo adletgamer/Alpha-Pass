@@ -4,12 +4,16 @@
 import type { Lot, Parcel } from "./domain";
 
 export function passportRoot(lot: Lot, parcels: Parcel[]) {
-  return merkleRoot([
+  return merkleRoot(passportClaims(lot, parcels));
+}
+
+export function passportClaims(lot: Lot, parcels: Parcel[]) {
+  return [
     { kind: "organizacion", cooperative: lot.cooperative },
     ...parcels.map((p) => ({ kind: "parcela", id: p.id, producer: p.producer, geometry: p.geometry })),
     ...parcels.map((p) => ({ kind: "deforestacion", id: p.id, result: p.risk, source: "whisp" })),
     { kind: "composicion", lot: lot.id, parcels: parcels.map((p) => [p.id, p.bags]) },
-  ]);
+  ];
 }
 
 export async function sha256Hex(data: string | Uint8Array): Promise<string> {
