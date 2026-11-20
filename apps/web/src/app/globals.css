@@ -82,4 +82,3 @@ header.site .inner { max-width: 1200px; margin: 0 auto; padding: 14px 24px; disp
 nav.site-nav { display: flex; flex-wrap: wrap; gap: 4px; }
 nav.site-nav a { padding: 10px 14px; border-radius: 8px; text-decoration: none; color: var(--ap-ink); font-size: 0.9rem; font-weight: 600; }
 nav.site-nav a[aria-current="page"] { background: var(--ap-green-800); color: var(--ap-white); }
-.demo-banner { background: var(--ap-green-900); color: var(--ap-parchment); font-size: 0.8rem; text-align: center; padding: 6px 12px; }

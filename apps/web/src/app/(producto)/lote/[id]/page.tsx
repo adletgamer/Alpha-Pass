@@ -91,12 +91,12 @@ function TestnetPassport({ id }: { id: string }) {
 
   const lot = state.lot;
   return (
-    <main className={`container ${styles.shell}`}>
+    <main className={`container product-shell ${styles.shell}`}>
       <PassportHeader id={id} simulation={false} />
       {lot ? (
         <>
           <PassportStats parcels={lot.parcels} bags={lot.bags} attested={lot.attestations.length} />
-          <p className="muted">Anclado el {dateFormat.format(lot.createdAt * 1000)} · Cooperativa <span className="mono">{lot.cooperative.slice(0, 6)}…{lot.cooperative.slice(-4)}</span></p>
+          <p className="product-subtitle">Anclado el {dateFormat.format(lot.createdAt * 1000)} · Cooperativa <span className="mono">{lot.cooperative.slice(0, 6)}…{lot.cooperative.slice(-4)}</span></p>
           <div className={styles.grid}>
             <VerifyEvidence reference={{ lotId: id, root: lot.passportRoot, parcels: lot.parcels, source: { type: "stellar-testnet", contractId: lot.contractId } }} />
             <Milestones attestations={lot.attestations.map((proof) => ({ ...proof, date: new Date(proof.timestamp * 1000) }))} />

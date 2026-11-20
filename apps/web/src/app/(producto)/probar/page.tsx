@@ -9,6 +9,7 @@ import { MILESTONE_LABEL, type Milestone } from "@/lib/domain";
 import { TESTNET_ESCROW_AMOUNT } from "@/lib/sample-data";
 import { callTestnet, useTestnetWallet } from "@/components/TestnetWallet";
 import { OperationPanel } from "@/components/OperationPanel";
+import { ProductHero, ProductMetrics } from "@/components/ProductDisplay";
 
 const ROLES = {
   cooperativa: { label: "Cooperativa · cuenta A", href: "/cooperativa", next: "Verifica las parcelas y ancla el pasaporte con la wallet vinculada a ACTA." },
@@ -19,7 +20,7 @@ const ROLES = {
 const fmt = (v: string) => Number(v).toLocaleString("es-PE", { maximumFractionDigits: 2 });
 
 export default function ProbarPage() {
-  return <Suspense fallback={<main className="container"><h1>Probar en Stellar Testnet</h1></main>}><TestnetGuide /></Suspense>;
+  return <Suspense fallback={<main className="container product-shell"><ProductHero label="Acceso al producto" title="Prueba Alpha Pass con tu wallet" /></main>}><TestnetGuide /></Suspense>;
 }
 
 function TestnetGuide() {
@@ -72,9 +73,9 @@ function TestnetGuide() {
 
   if (MODE !== "testnet") {
     return (
-      <main className="container">
-        <h1>Probar en Testnet</h1>
-        <p className="muted">Esta página solo está activa cuando la app corre en modo Testnet.</p>
+      <main className="container product-shell">
+        <ProductHero label="Acceso al producto" title="Testnet no disponible" description="Este despliegue necesita configuración de Stellar Testnet para habilitar las operaciones." />
+        <div><Link className="btn btn-ghost" href="/#explorar">Ver las vistas del producto</Link></div>
       </main>
     );
   }
@@ -86,93 +87,118 @@ function TestnetGuide() {
     role === "cooperativa" ? status?.hasUsdcTrustline : role === "importador" ? buyerReady : verifierReady
   );
   const waiting = busy !== null || connecting || reading;
+  const activeStep = !address ? 0 : roleReady ? 2 : 1;
+
   return (
-    <main className="container" style={{ maxWidth: 820 }}>
-      <div>
-        <div className="muted">Stellar Testnet · sin dinero real</div>
-        <h1>Prueba Alpha Pass con tu wallet</h1>
-        <p>Prepara tu cuenta para registrar el origen del lote, firmar atestaciones o fondear los pagos de prueba.</p>
-      </div>
+    <main className="container product-shell">
+      <ProductHero label="Acceso al producto" title="Prueba Alpha Pass con tu wallet" description="Prepara una cuenta para operar el lote. Los fondos y las transacciones son de prueba." />
 
-      <section className="card" aria-labelledby="preparar">
-        <div className="row" style={{ justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-          <h2 id="preparar">{address ? "Preparar esta wallet" : "Conecta tu wallet para comenzar"}</h2>
-          <button className={address ? "btn btn-ghost" : "btn"} type="button" disabled={waiting} onClick={() => { setMsg(null); void connect(); }}>
-            {address ? "Cambiar cuenta" : "Conectar wallet"}
-          </button>
-        </div>
-        {!address && <p className="muted" style={{ margin: 0 }}>Selecciona Freighter u otra wallet de Stellar para consultar tu cuenta y preparar el rol que vas a usar.</p>}
-        {walletError && <p className="error" role="alert" style={{ margin: 0 }}>{walletError}</p>}
-        {address && (
-          <div style={{ wordBreak: "break-all", fontSize: "0.85rem" }}>Cuenta activa: <span className="mono">{address}</span></div>
-        )}
-        {reading && <p role="status">Consultando saldo y permisos en Stellar Testnet…</p>}
-        {status && (
-          <div className="stats">
-            <div className="card"><span className="muted">XLM</span><span className="stat-value mono">{status.exists ? fmt(status.xlm) : "Cuenta nueva"}</span></div>
-            <div className="card"><span className="muted">USDC de prueba</span><span className="stat-value mono">{status.hasUsdcTrustline ? fmt(status.usdc) : "Sin trustline"}</span></div>
-            <div className="card"><span className="muted">Verificadora</span><span className="stat-value">{status.verifierFor.length === 3 ? "Sí, 3 hitos" : status.verifierFor.length ? status.verifierFor.map((m) => MILESTONE_LABEL[m]).join(", ") : "No"}</span></div>
-          </div>
-        )}
-        {address && <>
-        <label>¿Qué rol quieres preparar?{" "}
-          <select value={role} onChange={(event) => { setRole(event.target.value as keyof typeof ROLES); setMsg(null); }}>
-            {Object.entries(ROLES).map(([value, option]) => <option key={value} value={value}>{option.label}</option>)}
-          </select>
-        </label>
-        <ol style={{ margin: 0, paddingLeft: 20, display: "grid", gap: 12 }}>
-          <li>
-            <strong>XLM de prueba.</strong> Friendbot crea la cuenta con 10 000 XLM para pagar comisiones.{" "}
-            <button className="btn" type="button" disabled={!status || waiting || accountExists} onClick={fund}>
-              {accountExists ? "Cuenta fondeada" : busy === "fund" ? "Fondeando…" : "Pedir XLM"}
-            </button>
+      <ol className="testnet-steps" aria-label="Progreso de preparación">
+        {["Conectar wallet", "Preparar cuenta", "Entrar a la operación"].map((label, index) => (
+          <li key={label} aria-current={index === activeStep ? "step" : undefined}>
+            <span className="mono" aria-hidden="true">0{index + 1}</span><strong>{label}</strong>
           </li>
-          {role === "cooperativa" && <li>
-            <strong>Habilita la recepción de USDC.</strong> La firma añade la línea de confianza de Circle en Testnet.{" "}
-            <button className="btn" type="button" disabled={!accountExists || waiting || status?.hasUsdcTrustline} onClick={() => prepareUsdc("trustline")}>
-              {status?.hasUsdcTrustline ? "Recepción habilitada" : busy === "trustline" ? "Esperando tu firma…" : "Habilitar recepción de USDC"}
-            </button>
-          </li>}
-          {role === "importador" && <li>
-            <strong>Consigue saldo de prueba.</strong> Necesitas {TESTNET_ESCROW_AMOUNT} USDC de Testnet. Esta firma abre la línea de confianza si falta y cambia XLM de prueba por 200 USDC.{" "}
-            <button className="btn" type="button" disabled={!accountExists || waiting || buyerReady} onClick={() => prepareUsdc("usdc")}>
-              {buyerReady ? "Saldo suficiente" : busy === "usdc" ? "Esperando tu firma…" : "Obtener 200 USDC de prueba"}
-            </button>
-          </li>}
-          {role === "verificador" && <li>
-            <strong>Registra la cuenta en LotPassport.</strong> El permiso de prueba permite firmar acopio, embarque y llegada.{" "}
-            <button className="btn btn-ghost" type="button" disabled={!accountExists || waiting || verifierReady} onClick={verifier}>
-              {verifierReady ? "Permisos confirmados" : busy === "verifier" ? "Registrando…" : "Registrar verificador de prueba"}
-            </button>
-          </li>}
-        </ol>
-        </>}
-        {msg && <p className={msg.kind === "error" ? "error" : "muted"} role={msg.kind === "error" ? "alert" : "status"} style={{ margin: 0 }}>{msg.text}</p>}
-        {address && !status && !waiting && <div><button className="btn btn-ghost" type="button" onClick={refresh}>Volver a consultar la cuenta</button></div>}
-        {roleReady && <p><strong>Cuenta preparada.</strong> {ROLES[role].next} <Link href={ROLES[role].href}>Continuar como {role}</Link></p>}
-      </section>
+        ))}
+      </ol>
 
-      <section className="card" aria-labelledby="dos-cuentas">
-        <h2 id="dos-cuentas">Dos cuentas para completar el recorrido</h2>
-        <p style={{ margin: 0 }}>
-          La <strong>cooperativa</strong> ancla el pasaporte y recibe los pagos. El <strong>importador</strong> deposita los fondos desde otra cuenta.
-          Puedes registrar una de ellas como verificador de prueba. Para preparar una segunda cuenta, cámbiala en tu wallet y vuelve a conectar.
-        </p>
-      </section>
+      <div className="testnet-layout">
+        <section className="card" aria-labelledby="preparar">
+          <div className="product-card-heading">
+            <h2 id="preparar">{address ? "Preparar esta wallet" : "Conecta tu wallet para comenzar"}</h2>
+            <span className={`pill ${address ? "pill-ok" : "pill-wait"}`}>{address ? "Conectada" : "Pendiente de conexión"}</span>
+          </div>
+          {address ? (
+            <div className="product-address"><strong>Cuenta activa</strong><code className="mono">{address}</code></div>
+          ) : (
+            <p className="product-subtitle">Elige Freighter u otra wallet de Stellar. Usarás tu cuenta para confirmar las firmas del flujo de prueba.</p>
+          )}
+          <div>
+            <button className={address ? "btn btn-ghost" : "btn"} type="button" disabled={waiting} onClick={() => { setMsg(null); void connect(); }}>
+              {connecting ? "Conectando…" : address ? "Cambiar cuenta" : "Conectar wallet"}
+            </button>
+          </div>
+          {walletError && <p className="error product-subtitle" role="alert">{walletError}</p>}
+          {reading && <p className="product-subtitle" role="status">Consultando saldo y permisos en Stellar Testnet…</p>}
+          {status && (
+            <ProductMetrics label="Estado de la cuenta" items={[
+              { label: "XLM de prueba", value: status.exists ? fmt(status.xlm) : "Nueva" },
+              { label: "USDC de prueba", value: status.hasUsdcTrustline ? fmt(status.usdc) : "—", note: status.hasUsdcTrustline ? undefined : "Línea de confianza pendiente" },
+              { label: "Hitos habilitados", value: `${status.verifierFor.length}/3`, note: status.verifierFor.length ? status.verifierFor.map((m) => MILESTONE_LABEL[m]).join(", ") : undefined },
+            ]} />
+          )}
+          {address && (
+            <>
+              <label>Rol que quieres preparar
+                <select value={role} onChange={(event) => { setRole(event.target.value as keyof typeof ROLES); setMsg(null); }}>
+                  {Object.entries(ROLES).map(([value, option]) => <option key={value} value={value}>{option.label}</option>)}
+                </select>
+              </label>
+              <ul className="testnet-requirements">
+                <li>
+                  <div><strong>XLM para comisiones</strong><p>Friendbot fondea la cuenta de prueba.</p></div>
+                  <button className="btn" type="button" disabled={!status || waiting || accountExists} onClick={fund}>
+                    {accountExists ? "Cuenta fondeada" : busy === "fund" ? "Fondeando…" : "Pedir XLM"}
+                  </button>
+                </li>
+                {role === "cooperativa" && (
+                  <li>
+                    <div><strong>Recepción en USDC</strong><p>Firma la línea de confianza de Circle para recibir los pagos.</p></div>
+                    <button className="btn" type="button" disabled={!accountExists || waiting || status?.hasUsdcTrustline} onClick={() => prepareUsdc("trustline")}>
+                      {status?.hasUsdcTrustline ? "Recepción habilitada" : busy === "trustline" ? "Esperando tu firma…" : "Habilitar recepción de USDC"}
+                    </button>
+                  </li>
+                )}
+                {role === "importador" && (
+                  <li>
+                    <div><strong>Saldo para fondear el escrow</strong><p>Necesitas {TESTNET_ESCROW_AMOUNT} USDC de prueba. La firma cambia XLM de prueba por 200 USDC.</p></div>
+                    <button className="btn" type="button" disabled={!accountExists || waiting || buyerReady} onClick={() => prepareUsdc("usdc")}>
+                      {buyerReady ? "Saldo suficiente" : busy === "usdc" ? "Esperando tu firma…" : "Obtener 200 USDC de prueba"}
+                    </button>
+                  </li>
+                )}
+                {role === "verificador" && (
+                  <li>
+                    <div><strong>Permiso en LotPassport</strong><p>Registra la cuenta para firmar acopio, embarque y llegada.</p></div>
+                    <button className="btn" type="button" disabled={!accountExists || waiting || verifierReady} onClick={verifier}>
+                      {verifierReady ? "Permisos confirmados" : busy === "verifier" ? "Registrando…" : "Registrar verificador de prueba"}
+                    </button>
+                  </li>
+                )}
+              </ul>
+            </>
+          )}
+          {msg && <p className={msg.kind === "error" ? "error" : "product-subtitle"} role={msg.kind === "error" ? "alert" : "status"}>{msg.text}</p>}
+          {address && !status && !waiting && <div><button className="btn btn-ghost" type="button" onClick={refresh}>Volver a consultar la cuenta</button></div>}
+          {roleReady && (
+            <div className="testnet-ready">
+              <p><strong>Cuenta preparada.</strong> {ROLES[role].next}</p>
+              <Link className="btn" href={ROLES[role].href}>Continuar como {role}</Link>
+            </div>
+          )}
+        </section>
+
+        <aside className="card" aria-labelledby="dos-cuentas">
+          <h2 id="dos-cuentas">Dos cuentas, una operación</h2>
+          <ul className="testnet-account-list">
+            <li><strong>Cuenta A · Cooperativa</strong><span className="muted">Ancla el pasaporte y recibe los pagos.</span></li>
+            <li><strong>Cuenta B · Importador</strong><span className="muted">Deposita los fondos y solicita cada liberación.</span></li>
+          </ul>
+          <p className="product-subtitle">Puedes registrar una de las cuentas como verificador. Para cambiar de rol, selecciona la otra cuenta en tu wallet y vuelve a conectar.</p>
+        </aside>
+      </div>
 
       {address && <OperationPanel />}
       <section className="card" aria-labelledby="recorrido">
-        <h2 id="recorrido">Recorrido del lote {lot.id}</h2>
-        <ol style={{ margin: 0, paddingLeft: 20, display: "grid", gap: 8 }}>
-          <li><strong>Cooperativa</strong> (cuenta A): verifica las parcelas con Whisp y ancla el pasaporte.</li>
-          <li><strong>Importador</strong> (cuenta B, con USDC): crea y fondea el escrow de {TESTNET_ESCROW_AMOUNT} USDC.</li>
-          <li><strong>Verificador</strong> (cuenta registrada): firma acopio, embarque y llegada, en orden.</li>
-          <li><strong>Importador</strong>: libera cada hito. El servidor comprueba en LotPassport que el hito está firmado; si no, no paga.</li>
-          <li><strong>Pasaporte público</strong>: consulta el lote registrado en Stellar. {lot.passportRoot && <Link href={`/lote/${lot.id}`}>Ver pasaporte público</Link>}</li>
+        <div className="product-card-heading">
+          <h2 id="recorrido">Del origen al pago</h2>
+          {lot.passportRoot && <Link href={`/lote/${lot.id}`}>Ver pasaporte público</Link>}
+        </div>
+        <ol className="testnet-trail">
+          <li><strong>Parcelas</strong><span>La cooperativa consulta el riesgo satelital en Whisp.</span></li>
+          <li><strong>Pasaporte</strong><span>La wallet firma la credencial ACTA y el anclaje en LotPassport.</span></li>
+          <li><strong>Hitos</strong><span>El verificador atesta acopio, embarque y llegada.</span></li>
+          <li><strong>Pago</strong><span>Alpha Pass comprueba la atestación y solicita la liberación en Trustless Work.</span></li>
         </ol>
-        <p className="muted" style={{ margin: 0, fontSize: "0.85rem" }}>
-          Las parcelas y productores son datos de ejemplo. Las transacciones son reales en Stellar Testnet y se pueden ver en stellar.expert.
-        </p>
       </section>
     </main>
   );

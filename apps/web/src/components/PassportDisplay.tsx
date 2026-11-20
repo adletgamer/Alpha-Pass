@@ -1,28 +1,22 @@
 import { MILESTONES, MILESTONE_LABEL, type EscrowState, type Lot, type Milestone } from "@/lib/domain";
 import styles from "./Passport.module.css";
+import { ProductHero, ProductMetrics } from "./ProductDisplay";
 
 export const dateFormat = new Intl.DateTimeFormat("es-PE", { dateStyle: "medium", timeZone: "America/Lima" });
 
 export function PassportHeader({ id, simulation }: { id: string; simulation: boolean }) {
   return (
-    <header className={styles.hero}>
-      <div className={styles.heroMeta}>
-        <span>Pasaporte de lote</span>
-        <span className="pill pill-ok">{simulation ? "Datos ilustrativos" : "Stellar Testnet"}</span>
-      </div>
-      <h1 className="mono">{id}</h1>
-      <p>Alpha Pass · Trazabilidad de origen</p>
-    </header>
+    <ProductHero label="Pasaporte de lote" title={id} example={simulation} identifier description="Alpha Pass · Trazabilidad de origen" />
   );
 }
 
 export function PassportStats({ parcels, bags, attested }: { parcels: number; bags: number; attested: number }) {
   return (
-    <dl className={styles.stats}>
-      <div><dt>Parcelas incluidas</dt><dd>{parcels}</dd></div>
-      <div><dt>Sacos registrados</dt><dd>{bags}</dd></div>
-      <div><dt>Hitos atestados</dt><dd>{attested}/{MILESTONES.length}</dd></div>
-    </dl>
+    <ProductMetrics label="Resumen del pasaporte" items={[
+      { label: "Parcelas incluidas", value: parcels },
+      { label: "Sacos registrados", value: bags },
+      { label: "Hitos atestados", value: `${attested}/${MILESTONES.length}` },
+    ]} />
   );
 }
 
@@ -53,7 +47,7 @@ export function Milestones({ attestations, released }: {
 export function PassportPreview({ lot }: { lot: Lot }) {
   const parcels = lot.parcels.filter((parcel) => parcel.risk === "sin_riesgo");
   return (
-    <main className={`container ${styles.shell}`}>
+    <main className={`container product-shell ${styles.shell}`}>
       <PassportHeader id={lot.id} simulation />
       <PassportStats parcels={parcels.length} bags={parcels.reduce((total, parcel) => total + parcel.bags, 0)} attested={lot.attestations.length} />
       <div className={styles.grid}>
