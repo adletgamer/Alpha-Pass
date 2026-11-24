@@ -32,6 +32,7 @@ export function HomePage({ locale }: { locale: HomeLocale }) {
           <p className="hero-lead">
             {copy.heroLead}
           </p>
+          <p className="demo-note mono">{copy.heroEvidence}</p>
           <div className="hero-ctas">
             <Link href="/testnet" className="btn btn-lg">{copy.testnetCta}</Link>
             <Link href={PUBLIC_TESTNET_LOT_PATH} className="btn btn-ghost btn-lg">{copy.publicPassport}</Link>
