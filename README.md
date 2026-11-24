@@ -4,11 +4,36 @@
 
 # Alpha Pass
 
-**Cada lote con su origen, cada pago con su prueba.**
+**Sin prueba, no hay pago. Con prueba, la cooperativa cobra antes.**
 
-Alpha Pass une la evidencia de origen de un lote de café peruano con un escrow por hitos en **USDC o EURC** sobre Stellar. El importador descarga el expediente del lote y puede comprobar su evidencia de origen contra la raíz del pasaporte. Cada pago de acopio, embarque o llegada requiere una atestación firmada por un verificador autorizado.
+Las cooperativas cobran por hitos desde el acopio y los importadores europeos reciben la evidencia EUDR que exige la ley. El pago en **USDC o EURC** solo se libera cuando la prueba está en Stellar.
 
-Proyecto para Stellar Codember Perú 2026. **Prototipo operativo con wallet en Stellar Testnet**. `LotPassport` está desplegado en Testnet. El flujo completo requiere configurar el contrato y los proveedores de prueba.
+> *No proof, no payment.* Cooperatives get paid at each milestone, starting at harvest, and EU importers get the EUDR evidence the law requires. Money is released only when the proof is on Stellar.
+
+## Por qué ahora
+
+Desde el **30 de diciembre de 2026**, la EUDR se aplica a los operadores grandes y medianos de la UE. Desde esa fecha no pueden comercializar café sin una declaración de diligencia debida con la geolocalización de las parcelas. Hoy esa evidencia viaja en PDF que nadie puede verificar, y la cooperativa cobra semanas o meses después del embarque.
+
+## Qué gana cada parte
+
+| Quién | Hoy | Con Alpha Pass |
+| --- | --- | --- |
+| Cooperativa | Cobra después de que llega el contenedor | Cobra el 30% en el acopio, el 50% en el embarque y el 20% en la llegada |
+| Importador | Paga contra documentos que no puede comprobar | Paga en escrow y obtiene un expediente verificable contra la raíz anclada en Stellar |
+| Productores | El premio se reparte sin trazabilidad | El premio se reparte por sacos con `PremiumSplitter` (contrato probado; falta desplegarlo en Testnet) |
+
+La regla está en el código: cada hito se libera solo si `LotPassport` tiene la atestación firmada de un verificador autorizado y el hito anterior ya se liberó.
+
+## Probado en Stellar Testnet
+
+- `LotPassport`, desplegado: [`CDNM2H5X…CZ7BO`](https://stellar.expert/explorer/testnet/contract/CDNM2H5XU3IR5YVE6TJJE36RPFIKWVQ2WEPNRSLAMW2JPAURETVCZ7BO).
+- Recorrido de punta a punta: 20 de 20 pasos. Whisp (FAO) evaluó las parcelas reales, la cooperativa firmó `create_lot` y el importador fondeó un escrow de Trustless Work con 150 USDC.
+- La liberación sin atestación y la liberación con el escrow de otro lote respondieron **409**: el dinero no se movió.
+- Tres atestaciones y tres liberaciones: la cooperativa recibió **149,55 USDC** (0,45 de comisión de protocolo). Escrow del lote de referencia `2026-JAE-014-SOLO01`: [`CAA66ALC…DK62W`](https://stellar.expert/explorer/testnet/contract/CAA66ALCFG7LJO2BBY2KD5L2GVWWO2MZWWRFHG5KDEOUG6LY5A6DK62W).
+
+Detalle y método en [docs/INTEGRACIONES.md](docs/INTEGRACIONES.md#prueba-de-punta-a-punta).
+
+Proyecto para Stellar Codember Perú 2026. Prototipo operativo con wallet en Stellar Testnet. Alpha Pass organiza la evidencia para la diligencia debida del importador. No certifica el cumplimiento EUDR.
 
 ## Qué hay en este repo
 

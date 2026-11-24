@@ -2,16 +2,16 @@ import type { Metadata } from "next";
 import type { HomeLocale } from "./home-copy";
 
 const DESCRIPTION =
-  "Alpha Pass conecta la evidencia de origen de lotes de café y cacao del Perú con pagos internacionales liberados por hitos, sobre Stellar.";
+  "Las cooperativas cobran por hitos desde el acopio y los importadores europeos reciben la evidencia EUDR de cada lote de café peruano. El pago en USDC o EURC solo se libera cuando la prueba está en Stellar.";
 
 export function homeMetadata(locale: HomeLocale): Metadata {
   const description = locale === "en"
-    ? "Alpha Pass connects verified origin evidence for Peruvian coffee and cacao lots with milestone-based international payments on Stellar."
+    ? "Cooperatives get paid at each milestone, starting at harvest, and EU importers get EUDR evidence for every Peruvian coffee lot. USDC or EURC is released only when the proof is on Stellar."
     : DESCRIPTION;
   return {
     title: { absolute: locale === "en"
-      ? "Alpha Pass · Verified origin, proof-backed payments"
-      : "Alpha Pass · Cada lote con su origen, cada pago con su prueba" },
+      ? "Alpha Pass · No proof, no payment"
+      : "Alpha Pass · Sin prueba, no hay pago" },
     description,
     openGraph: {
       title: "Alpha Pass · Verified Origin Infrastructure",
