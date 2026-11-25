@@ -95,6 +95,12 @@ function TestnetWorkspace() {
     <main className="container product-shell">
       <ProductHero label="Entorno de integración" title="Alpha Pass en Stellar Testnet" description="Selecciona Cooperativa o Importador y conecta tu wallet para validar transacciones en Stellar Testnet." />
 
+      <section className="card testnet-ready" aria-labelledby="demo-guiada">
+        <h2 id="demo-guiada">¿Primera vez? Usa la demo guiada</h2>
+        <p className="product-subtitle">Una sola wallet: eliges tu rol y Alpha Pass firma las demás partes con cuentas de prueba propias. Recorres Whisp, ACTA, LotPassport, el escrow y los tres hitos en pocos minutos.</p>
+        <div><Link className="btn" href="/demo">Abrir la demo guiada</Link></div>
+      </section>
+
       <fieldset className="testnet-role-picker">
         <legend>Rol de operación</legend>
         {(["cooperativa", "importador", ...(role === "verificador" ? ["verificador"] : [])] as (keyof typeof ROLES)[]).map((value) => (

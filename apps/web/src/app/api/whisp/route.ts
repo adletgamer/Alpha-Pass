@@ -1,23 +1,16 @@
 // Evaluación de riesgo de deforestación por parcela con la API de Whisp (FAO).
 // Documentación: https://whisp.openforis.org/api/openapi.json
-import { assertSameOrigin, errorResponse, serverEnv } from "@/lib/server/env";
-import { matchWhispRisks, type WhispFeatureProps } from "@/lib/whisp";
+import { assertSameOrigin, errorResponse } from "@/lib/server/env";
+import { assessWithWhisp, WhispError, type WhispParcel } from "@/lib/server/whisp-assess";
 import { authorizedOperation } from "@/lib/server/operations";
 import { readOperation, updateOperation } from "@/lib/server/operations-db";
 import { applyCheckpoint, OperationError } from "@/lib/server/operation-state";
 import { SAMPLE_PARCELS } from "@/lib/sample-data";
 
-interface Body {
-  parcels: { id: string; geometry: { type: "Polygon"; coordinates: number[][][] } }[];
-}
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
 export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
-    const { url, key } = serverEnv.whisp();
-    const body = (await request.json()) as Body & { lotId?: string };
+    const body = (await request.json()) as { parcels: WhispParcel[]; lotId?: string };
     let parcels = body.parcels;
     const access = request.headers.get("x-operation-access");
     if (access) {
@@ -29,33 +22,7 @@ export async function POST(request: Request) {
     if (!Array.isArray(parcels) || parcels.length === 0 || parcels.length > 200) {
       return Response.json({ code: "invalid", message: "Envía entre 1 y 200 parcelas" }, { status: 400 });
     }
-    const headers = { "Content-Type": "application/json", "x-api-key": key };
-    const submit = await fetch(`${url}/api/submit/geojson`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        type: "FeatureCollection",
-        features: parcels.map((p) => ({ type: "Feature", properties: { alphaId: p.id }, geometry: p.geometry })),
-        // Whisp descarta las propiedades propias; externalIdColumn devuelve el ID como external_id.
-        analysisOptions: { async: true, unitType: "ha", externalIdColumn: "alphaId" },
-      }),
-    });
-    let payload = await submit.json();
-    if (!submit.ok && submit.status !== 202) {
-      return Response.json(payload, { status: submit.status });
-    }
-    // Análisis asíncrono: consultar el estado hasta ~50 s.
-    for (let i = 0; payload.code !== "analysis_completed" && payload.data?.token && i < 25; i++) {
-      await sleep(2000);
-      const st = await fetch(`${url}/api/status/${payload.data.token}`, { headers: { "x-api-key": key } });
-      payload = await st.json();
-      if (!st.ok && st.status !== 202) return Response.json(payload, { status: st.status });
-    }
-    if (payload.code !== "analysis_completed") {
-      return Response.json({ code: "timeout", message: "Whisp todavía está procesando; intenta de nuevo." }, { status: 504 });
-    }
-    const features: { properties: WhispFeatureProps }[] = payload.data?.features ?? [];
-    const risks = matchWhispRisks(parcels.map((p) => p.id), features);
+    const { risks, whispVersion } = await assessWithWhisp(parcels);
     if (access && body.lotId) {
       let saved = false;
       for (let attempt = 0; attempt < 3 && !saved; attempt++) {
@@ -65,9 +32,10 @@ export async function POST(request: Request) {
       }
       if (!saved) throw new OperationError("El lote cambió durante la verificación. Vuelve a intentarlo.");
     }
-    return Response.json({ risks, whispVersion: features[0]?.properties.whisp_processing_metadata?.whisp_version ?? null });
+    return Response.json({ risks, whispVersion });
   } catch (err) {
     if (err instanceof OperationError) return Response.json({ message: err.message }, { status: err.status });
+    if (err instanceof WhispError) return Response.json(err.body, { status: err.status });
     return errorResponse(err, 502);
   }
 }
