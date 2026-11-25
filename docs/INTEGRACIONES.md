@@ -37,6 +37,57 @@ Las identidades de prueba se guardaron localmente bajo `contracts/.stellar/` (ig
 3. `/api/escrow/release` simula `is_attested`; si es `false`, responde 409 y no toca el escrow.
 4. Si es `true`, pide a Trustless Work la aprobación y la liberación, las firma con la cuenta aprobadora y las envía.
 
+## Demo guiada con una sola wallet
+
+`/demo` recorre la operación completa con **una sola wallet**. Quien prueba elige un rol (cooperativa, importador o verificador) y firma solo los pasos de ese rol. El servidor firma los demás pasos con tres cuentas de prueba de Alpha Pass, "de la casa", fondeadas con Friendbot y USDC de prueba. La regla no cambia: cada hito se libera solo si `LotPassport.is_attested` devuelve `true`.
+
+| Paso | Firma si eliges ese rol | Si no, firma |
+| --- | --- | --- |
+| Whisp (FAO) evalúa las 5 parcelas | — | Servidor |
+| Credencial W3C del lote en ACTA | — | Emisora ACTA de Alpha Pass |
+| `LotPassport.create_lot` | Tu wallet (cooperativa) | Cooperativa de la casa |
+| Deploy y fondeo del escrow de 150 USDC | Tu wallet (importador) | Importador de la casa |
+| Liberar sin prueba (debe responder 409) | — | Servidor |
+| `attest` de acopio, embarque y llegada | Tu wallet (verificador) | Verificador de la casa |
+| Aprobar y liberar cada hito | — | Aprobadora de Alpha Pass |
+
+Antes de empezar, `/api/demo` (acción `prepare`) deja lista la wallet del usuario. Pide XLM a Friendbot y, según el rol, pide como máximo una firma más:
+- la cooperativa abre la trustline de USDC para cobrar;
+- el importador cambia XLM de prueba por 200 USDC;
+- el verificador no firma nada, porque la administradora lo autoriza en LotPassport.
+
+Si eliges cooperativa, los tres pagos llegan a tu wallet. En los otros roles cobra la cooperativa de la casa, y el servidor recicla ese USDC hacia el importador de la casa para la siguiente demo.
+
+### Preparar las cuentas de la casa
+
+```bash
+cd apps/web
+npm run demo:setup
+```
+
+El script crea las cuentas que falten y guarda sus secretos en `.env.local`, sin imprimirlos. Las fondea con Friendbot, abre las trustlines y compra 1000 USDC de prueba para el importador. También autoriza al verificador de la casa en los tres hitos. Se puede repetir sin efectos secundarios. Las direcciones del 24-nov-2026:
+
+| Cuenta | Dirección |
+| --- | --- |
+| Cooperativa de la casa | `GCURU4VWEG5FE2RYRU7EFMDXVMGIROKCPQ5IQFIXGKKPYQQ4ULPM2UG5` |
+| Importador de la casa | `GCB7BQI5J5Y6XSSKE6RHP4EXMQIQLDIQW4VDJIXZ3E6OBXWUZEBBVQQM` |
+| Verificador de la casa | `GDWSYWRUYKYGCIR4AQPPDEMSZ6S6TWPJSBBUSKTKFCFT3G3KMD3D2MMK` |
+
+Para desplegar, copia las variables `ALPHA_DEMO_*` y `ALPHA_ACTA_*` a Vercel, sin el prefijo `NEXT_PUBLIC_`.
+
+### ACTA de punta a punta
+
+ACTA solo acepta como emisor la wallet asociada a `ACTA_API_KEY`; el destinatario puede ser cualquier dirección. Por eso la emisión ocurre en el servidor:
+1. La emisora (`ALPHA_ACTA_ISSUER_SECRET`) crea una bóveda patrocinada para la cooperativa (`/contracts/sponsored-vault/create`).
+2. Emite ahí la credencial `AlphaPassLotPassport` con la raíz del pasaporte (`/contracts/vc/issue`).
+3. Comprueba la credencial con `verify-vc`.
+
+`npm run demo:setup` registra una sola vez el `did:stellar` de la emisora y lo guarda en `ALPHA_ACTA_ISSUER_IDENTITY`. El servidor usa la API REST de ACTA directamente, porque la entrada del SDK carga hooks de React que no funcionan en una ruta de servidor de Next.
+
+### Prueba de la demo
+
+`node --dns-result-order=ipv4first scripts/e2e-demo.mjs http://localhost:3000` crea una wallet nueva por rol y recorre los 12 pasos firmando solo los de ese rol.
+
 ## Preparar una wallet para Stellar Testnet
 
 La página `/testnet` deja lista una wallet de Stellar en Testnet (Freighter, xBull, Lobstr, Albedo…):
