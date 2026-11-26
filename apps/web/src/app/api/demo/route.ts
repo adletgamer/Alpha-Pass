@@ -37,6 +37,26 @@ function parseRole(role: unknown): demo.DemoRole {
   return role as demo.DemoRole;
 }
 
+function missingRequirements(role: demo.DemoRole): string[] {
+  const common = [
+    ["Conexión con Trustless Work", Boolean(process.env.TRUSTLESS_WORK_API_KEY?.trim())],
+    ["Emisor USDC de Testnet", Boolean(process.env.NEXT_PUBLIC_USDC_ISSUER?.trim())],
+    ["Contrato LotPassport", Boolean(process.env.NEXT_PUBLIC_LOT_PASSPORT_CONTRACT_ID?.trim())],
+    ["Cuenta aprobadora de Alpha Pass", Boolean(process.env.ALPHA_APPROVER_SECRET?.trim() && process.env.ALPHA_APPROVER_PUBLIC?.trim())],
+    ["Roles del escrow", ["ALPHA_ADMIN_PUBLIC", "ALPHA_DISPUTE_RESOLVER_PUBLIC", "ALPHA_PLATFORM_PUBLIC"].every((name) => Boolean(process.env[name]?.trim()))],
+  ] as const;
+  const requiredHouse = ROLES.filter((candidate) => candidate !== role);
+  const checks = [
+    ...common,
+    ...requiredHouse.map((houseRole) => [
+      `Cuenta de prueba: ${houseRole === "cooperativa" ? "cooperativa" : houseRole === "importador" ? "importador" : "verificador"}`,
+      houseConfigured(houseRole),
+    ] as const),
+    ...(role === "verificador" ? [["Permiso para registrar verificadores", Boolean(process.env.ALPHA_ADMIN_SECRET?.trim())] as const] : []),
+  ];
+  return checks.filter(([, configured]) => !configured).map(([label]) => label);
+}
+
 function assertNotHouse(address: string) {
   for (const role of ROLES) {
     if (houseConfigured(role) && houseKeypair(role).publicKey() === address) {
@@ -54,7 +74,8 @@ export async function POST(request: Request) {
 
     if (action === "status") {
       const house = Object.fromEntries(ROLES.map((r) => [r, houseConfigured(r) ? houseKeypair(r).publicKey() : null]));
-      return Response.json({ house, acta: actaIssuerConfigured(), approver: process.env.ALPHA_APPROVER_PUBLIC ?? null });
+      const requirements = Object.fromEntries(ROLES.map((role) => [role, missingRequirements(role)]));
+      return Response.json({ house, acta: actaIssuerConfigured(), approver: process.env.ALPHA_APPROVER_PUBLIC?.trim() || null, requirements });
     }
 
     if (action === "submit") {
@@ -72,6 +93,12 @@ export async function POST(request: Request) {
     assertAddress(body.address);
     const user = body.address;
     assertNotHouse(user);
+    if (["prepare", "start", "credential", "anchor", "escrow-deploy", "escrow-fund", "attest", "release"].includes(String(action))) {
+      const missing = missingRequirements(role);
+      if (missing.length > 0) {
+        throw new demo.DemoError(`La demo no está configurada para el rol ${role}. El equipo debe revisar: ${missing.join(", ")}.`, 503);
+      }
+    }
     if (limited(request, "demo", 120)) {
       return Response.json({ code: "limit", message: "Demasiadas solicitudes de demo. Espera unos minutos." }, { status: 429 });
     }

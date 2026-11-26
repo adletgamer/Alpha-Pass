@@ -17,6 +17,12 @@ import styles from "./demo.module.css";
 type Role = "cooperativa" | "importador" | "verificador";
 type Risks = Record<string, "sin_riesgo" | "alerta">;
 type Actor = Role | "alpha" | "acta";
+type DemoStatus = {
+  house: Record<Role, string | null>;
+  acta: boolean;
+  approver: string | null;
+  requirements: Record<Role, string[]>;
+};
 
 const ROLE_LABEL: Record<Role, string> = { cooperativa: "Cooperativa", importador: "Importador", verificador: "Verificador" };
 const ROLE_PITCH: Record<Role, string> = {
@@ -84,11 +90,24 @@ export default function DemoPage() {
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
-  const [status, setStatus] = useState<{ house: Record<Role, string | null>; acta: boolean; approver: string | null } | null>(null);
+  const [status, setStatus] = useState<DemoStatus | null>(null);
+  const [statusLoading, setStatusLoading] = useState(true);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
-  useEffect(() => {
-    callDemo<typeof status>({ action: "status" }).then(setStatus).catch(() => setStatus(null));
+  const refreshStatus = useCallback(async () => {
+    setStatusLoading(true);
+    setStatusError(null);
+    try {
+      setStatus(await callDemo<DemoStatus>({ action: "status" }));
+    } catch (err) {
+      setStatus(null);
+      setStatusError(err instanceof Error ? err.message : "No se pudo diagnosticar el entorno.");
+    } finally {
+      setStatusLoading(false);
+    }
   }, []);
+
+  useEffect(() => { void refreshStatus(); }, [refreshStatus]);
 
   useEffect(() => {
     if (!address) return;
@@ -234,6 +253,8 @@ export default function DemoPage() {
 
   const current = finished ? null : STEPS[nextIndex];
   const credentialBlocked = current?.key === "credential" && status && !status.acta;
+  const missingRequirements = status?.requirements?.[role] ?? [];
+  const demoAvailable = Boolean(status && !statusLoading && !statusError && missingRequirements.length === 0);
 
   return (
     <main className="container product-shell">
@@ -260,10 +281,32 @@ export default function DemoPage() {
             {finished ? <span className="pill pill-ok">Operación completa</span> : started ? <span className="pill pill-wait">En curso</span> : null}
           </div>
 
+          <section className={styles.readiness} aria-labelledby="demo-diagnostico" aria-live="polite">
+            <div className={styles.readinessHeading}>
+              <div>
+                <h3 id="demo-diagnostico">Antes de empezar</h3>
+                <p>{statusLoading ? "Comprobando la configuración de la demo…" : statusError ? "No se pudo comprobar si el entorno está listo." : demoAvailable ? "El entorno está listo para completar esta demo." : `Falta configuración para completar la demo como ${ROLE_LABEL[role].toLowerCase()}.`}</p>
+              </div>
+              {(statusError || missingRequirements.length > 0) && (
+                <button className="btn btn-ghost" type="button" disabled={statusLoading} onClick={() => void refreshStatus()}>
+                  {statusLoading ? "Comprobando…" : "Reintentar diagnóstico"}
+                </button>
+              )}
+            </div>
+            {statusError && <p className="error" role="alert">{statusError} Puedes reintentar; conectar la wallet seguirá disponible cuando el diagnóstico responda.</p>}
+            {missingRequirements.length > 0 && (
+              <div className={styles.readinessIssue}>
+                <p>El equipo que administra la demo debe revisar:</p>
+                <ul>{missingRequirements.map((item) => <li key={item}>{item}</li>)}</ul>
+              </div>
+            )}
+            {status && <p className={styles.optionalStatus}>ACTA: {status.acta ? "disponible" : "opcional, no configurada"}.</p>}
+          </section>
+
           {!address ? (
             <>
               <p className="product-subtitle">Conecta Freighter, xBull, Albedo u otra wallet de Stellar en Testnet. Solo necesitas una.</p>
-              <div><button className="btn" type="button" disabled={connecting} onClick={() => void connect()}>{connecting ? "Conectando…" : "Conectar wallet"}</button></div>
+              <div><button className="btn" type="button" disabled={connecting || !demoAvailable} onClick={() => void connect()}>{connecting ? "Conectando…" : "Conectar wallet"}</button></div>
               {walletError && <p className="error" role="alert">{walletError}</p>}
             </>
           ) : !ready && !started ? (
@@ -274,7 +317,7 @@ export default function DemoPage() {
                   role === "importador" ? " y te pide una firma para cambiar XLM de prueba por 200 USDC de prueba." :
                     " y la registra como verificadora de los tres hitos. No necesitas firmar nada más."}
               </p>
-              <div><button className="btn" type="button" disabled={busy !== null} onClick={prepare}>{busy === "prepare" ? "Preparando…" : "Preparar mi wallet"}</button></div>
+              <div><button className="btn" type="button" disabled={busy !== null || !demoAvailable} onClick={prepare}>{busy === "prepare" ? "Preparando…" : "Preparar mi wallet"}</button></div>
             </>
           ) : null}
 
@@ -308,7 +351,7 @@ export default function DemoPage() {
           {address && (ready || started) && (
             <div className="product-inline-actions">
               {current && (
-                <button className="btn" type="button" disabled={busy !== null || Boolean(credentialBlocked)} onClick={advance}>
+                <button className="btn" type="button" disabled={busy !== null || !demoAvailable || Boolean(credentialBlocked)} onClick={advance}>
                   {busy ? "Procesando en Stellar Testnet…" : current.actor === role ? `Firmar: ${current.label.toLowerCase()}` : `Continuar: ${current.label.toLowerCase()}`}
                 </button>
               )}
