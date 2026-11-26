@@ -248,6 +248,10 @@
   .origin-photo { grid-column: 1 / -1; min-height: 300px; }
 }
 
+@media (max-width: 1060px) and (min-width: 761px) {
+  .home .hero-content { padding-right: 250px; }
+}
+
 @media (max-width: 760px) {
   .editorial-heading, .explorer-evidence { grid-template-columns: 1fr; gap: 15px; }
   .home .hero { height: auto; min-height: 100svh; }
@@ -285,6 +289,13 @@
   .home .hero-visual::after {
     background: linear-gradient(180deg, transparent 9%, #0d251bd9 23%, #0d251b 51%);
   }
+
+  .home .hero-content { padding: 88px 20px 16px; }
+  .home .hero-title { font-size: clamp(1.9rem, 8vw, 2.55rem); }
+  .home .hero-lead { font-size: 0.92rem; line-height: 1.4; margin-top: 12px; }
+  .home .hero-content > .demo-note { margin-top: 10px; font-size: 0.68rem; line-height: 1.35; }
+  .home .hero-ctas { margin-top: 14px; gap: 8px; }
+  .home .hero-content .hero-ctas .btn { min-height: 40px; padding-inline: 12px; font-size: 0.8rem; }
 }
 
 @media (max-height: 720px) and (min-width: 761px) {
