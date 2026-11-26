@@ -31,6 +31,7 @@
 
 .home .hero-sticky {
   background: var(--ap-forest-deep);
+  align-items: flex-start;
 }
 
 .home .hero-visual::after {
@@ -249,12 +250,16 @@
 
 @media (max-width: 760px) {
   .editorial-heading, .explorer-evidence { grid-template-columns: 1fr; gap: 15px; }
-  .home .hero-title { font-size: clamp(2.35rem, 11vw, 4rem); }
+  .home .hero { height: auto; min-height: 100svh; }
+  .home .hero-sticky { position: relative; top: auto; height: auto; min-height: 100svh; align-items: flex-end; }
+  .home .hero-content { padding: 116px 20px 24px; }
+  .home .hero-title { max-width: 15ch; font-size: clamp(2.25rem, 9vw, 3.5rem); line-height: 0.98; }
+  .home .hero-lead { max-width: 38ch; font-size: 1rem; line-height: 1.5; margin-top: 16px; }
+  .home .hero-content > .demo-note { max-width: 54ch; font-size: 0.74rem; line-height: 1.45; }
+  .home .hero-stages, .home .hero-stage-text, .home .hero-scroll-cue, .home .hero-signal { display: none; }
+  .home .hero-ctas { margin-top: 20px; }
   .home .hero-visual::after { background: linear-gradient(180deg, transparent 10%, #0d251b90 28%, #0d251b 58%); }
-  .home .hero-content { padding-bottom: 14px; }
   .home .hero-content .hero-ctas .btn { min-height: 44px; padding-inline: 16px; font-size: 0.87rem; }
-  .home .hero-scroll-cue { display: none; }
-  .home .hero-signal { top: 80px; }
   .trust-board { display: block; padding: 0; }
   .trust-photo { min-height: 290px; }
   .trust-passport { margin: -40px 12px 0; z-index: 2; }
@@ -283,7 +288,11 @@
 }
 
 @media (max-height: 720px) and (min-width: 761px) {
-  .home .hero-title { font-size: clamp(2.7rem, 6vw, 4.15rem); }
-  .home .hero-ctas { margin-top: 18px; }
-  .home .hero-content { padding-top: 76px; padding-bottom: 18px; }
+  .home .hero-title { max-width: 15ch; font-size: clamp(2.45rem, 4.7vw, 3.45rem); line-height: 0.98; }
+  .home .hero-lead { max-width: 42ch; font-size: 1rem; line-height: 1.45; margin-top: 14px; }
+  .home .hero-content { padding-top: 88px; padding-bottom: 16px; }
+  .home .hero-content > .demo-note { margin-top: 10px; font-size: 0.72rem; line-height: 1.35; }
+  .home .hero-ctas { margin-top: 16px; }
+  .home .hero-stages { margin-top: 16px; }
+  .home .hero-stage-text, .home .hero-scroll-cue { display: none; }
 }
