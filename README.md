@@ -4,22 +4,24 @@
 
 # Alpha Pass
 
-**Sin prueba, no hay pago. Con prueba, la cooperativa cobra antes.**
+**Cada lote lleva sus pruebas. La cooperativa cobra por etapas.**
 
-Las cooperativas cobran por hitos desde el acopio y los importadores europeos reciben la evidencia EUDR que exige la ley. El pago en **USDC o EURC** solo se libera cuando la prueba está en Stellar.
+Alpha Pass reúne el origen y las pruebas de cada lote de café. El comprador reserva el pago y un verificador confirma la recolección, el embarque y la entrega antes de liberar cada parte a la cooperativa.
 
-> *No proof, no payment.* Cooperatives get paid at each milestone, starting at harvest, and EU importers get the EUDR evidence the law requires. Money is released only when the proof is on Stellar.
+> *Proof for every lot. Payments by stage.* Alpha Pass brings a coffee lot’s origin and evidence together. The buyer reserves the payment; a verifier confirms collection, shipment and delivery before each part is released to the cooperative.
+
+Alpha Pass organiza evidencia para apoyar la debida diligencia del comprador. No crea ni presenta la declaración oficial EUDR, no es una autoridad de certificación y no garantiza cumplimiento.
 
 ## Por qué ahora
 
-Desde el **30 de diciembre de 2026**, la EUDR se aplica a los operadores grandes y medianos de la UE. Desde esa fecha no pueden comercializar café sin una declaración de diligencia debida con la geolocalización de las parcelas. Hoy esa evidencia viaja en PDF que nadie puede verificar, y la cooperativa cobra semanas o meses después del embarque.
+La [EUDR](https://environment.ec.europa.eu/topics/forests/deforestation/eu-deforestation-regulation-eudr_en) exige a los operadores cubiertos realizar debida diligencia y presentar una declaración con información del producto, incluida la geolocalización de las parcelas. La fecha de aplicación para operadores y comerciantes grandes y medianos es el **30 de diciembre de 2026**; para la mayoría de los micro y pequeños operadores es el **30 de junio de 2027**. Alpha Pass organiza evidencia por lote para apoyar ese proceso, pero no sustituye la declaración ni las obligaciones del operador.
 
 ## Qué gana cada parte
 
 | Quién | Hoy | Con Alpha Pass |
 | --- | --- | --- |
 | Cooperativa | Cobra después de que llega el contenedor | Cobra el 30% en el acopio, el 50% en el embarque y el 20% en la llegada |
-| Importador | Paga contra documentos que no puede comprobar | Paga en escrow y obtiene un expediente verificable contra la raíz anclada en Stellar |
+| Importador | Recibe documentos y datos de origen en distintos formatos | Reserva el pago en escrow y consulta evidencia organizada por lote, contrastable con el pasaporte anclado en Stellar |
 | Productores | El premio se reparte sin trazabilidad | El premio se reparte por sacos con `PremiumSplitter` (contrato probado; falta desplegarlo en Testnet) |
 
 La regla está en el código: cada hito se libera solo si `LotPassport` tiene la atestación firmada de un verificador autorizado y el hito anterior ya se liberó.
